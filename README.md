@@ -1,50 +1,97 @@
-# Welcome to your Expo app 👋
+# Sistola — Monitor de Presión Arterial
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> App móvil para monitorear la presión arterial, registrar hábitos de bienestar y mantener la adherencia a medicamentos. Disponible en Android.
 
-## Get started
+## Capturas de pantalla
 
-1. Install dependencies
+<!-- Agrega tus screenshots aquí -->
+<!-- ![Home](screenshots/home.png) ![Registro](screenshots/registro.png) -->
 
-   ```bash
-   npm install
-   ```
+## Funcionalidades
 
-2. Start the app
+- **Registro de presión arterial** — validación clínica (ESC/ESH 2018), alerta de presión crítica con llamada de emergencias
+- **Dashboard inteligente** — insight de tendencia, racha semanal, comparativa con semana anterior
+- **Gráfico de tendencia** — sistólica, diastólica y pulso en los últimos 14 días con línea de meta
+- **Check-in diario** — sueño, estrés y actividad con feedback contextual de bienestar
+- **Historial completo** — filtros por clasificación y período, swipe-to-delete, export a texto/CSV/PDF
+- **Gamificación** — sistema de aura, niveles progresivos y 8 logros desbloqueables
+- **Recordatorios push** — notificación diaria con hora configurable
+- **Modo oscuro** — toggle manual, tema-aware en todos los componentes
+- **Copia de seguridad** — export/import JSON con validación
+- **Perfil personalizable** — foto o emoji de avatar, adherencia a medicamentos
 
-   ```bash
-   npx expo start
-   ```
+## Stack técnico
 
-In the output, you'll find options to open the app in a
+| Tecnología | Uso |
+|---|---|
+| React Native 0.81 + Expo SDK 54 | Framework principal |
+| Expo Router 6 | Navegación file-based |
+| TypeScript estricto | Tipado completo |
+| AsyncStorage | Persistencia local (sin backend) |
+| react-native-svg | Gráficos de línea |
+| expo-notifications | Recordatorios push |
+| expo-print + expo-sharing | Export PDF/CSV |
+| expo-image-picker | Avatar de perfil |
+| react-native-gesture-handler | Swipe-to-delete |
+| react-native-view-shot | Captura de gráficos como imagen |
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Arquitectura
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+app/
+  _layout.tsx          # Root layout con ThemeSchemeProvider
+  onboarding.tsx       # Wizard 3 pasos con picker de medicamentos
+  (tabs)/
+    index.tsx          # Dashboard principal
+    explore.tsx        # Registro de presión arterial
+    historial.tsx      # Historial con stats y export
+    perfil.tsx         # Perfil y configuración
+components/
+  bp-chart.tsx         # Gráfico BP tema-aware
+  checkin-chart.tsx    # Gráfico sueño/estrés
+  medicamento-picker.tsx
+contexts/
+  theme.tsx            # ThemeSchemeProvider + useAppScheme()
+utils/
+  notifications.ts
+  insights.ts          # Tendencia, correlación sueño, racha
+  gamificacion.ts      # Cálculo de aura, niveles, logros
+  medicamentos.ts      # Lista WHO/ESC 2018
+constants/
+  theme.ts             # Tokens de color (claro y oscuro)
+hooks/
+  use-theme-color.ts   # useColors() — retorna tema activo
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Lógica de clasificación BP (ESC/ESH 2018)
 
-## Learn more
+```
+SYS ≥ 180 | DIA ≥ 110  →  Crítica      (HTA Grado 3)
+SYS ≥ 160 | DIA ≥ 100  →  Alta         (HTA Grado 2)
+SYS ≥ 140 | DIA ≥  90  →  Elevada      (HTA Grado 1)
+SYS ≥ 130 | DIA ≥  85  →  Normal-alta
+resto                   →  Normal
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## Instalar y correr
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm install
+npx expo start
+```
 
-## Join the community
+Para build en dispositivo físico (requiere EAS):
 
-Join our community of developers creating universal apps.
+```bash
+eas build --profile preview --platform android
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Diseño
+
+- Color primario: `#7F77DD` (púrpura)
+- Modo claro y oscuro completos
+- Sin dependencias de UI externas — estilos con StyleSheet + tokens de tema propios
+
+## Licencia
+
+MIT

@@ -41,3 +41,13 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Windows
+desktop.ini
+
+# Google service account (never commit)
+google-service-account.json

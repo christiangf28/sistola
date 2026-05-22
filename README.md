@@ -8,7 +8,13 @@
 
 ## Screenshots
 
-<!-- ![Home](screenshots/home.png) ![Register](screenshots/registro.png) ![History](screenshots/historial.png) ![Profile](screenshots/perfil.png) -->
+<p align="center">
+  <img src="screenshots/Screenshot_1778969577.png" width="18%" />
+  <img src="screenshots/Screenshot_1778969581.png" width="18%" />
+  <img src="screenshots/Screenshot_1778969594.png" width="18%" />
+  <img src="screenshots/Screenshot_1778969645.png" width="18%" />
+  <img src="screenshots/Screenshot_1778969649.png" width="18%" />
+</p>
 
 ## Features
 

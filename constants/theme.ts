@@ -29,6 +29,7 @@ export const Colors = {
     elevada:    { bg: '#FAEEDA', color: '#633806' },
     normalAlta: { bg: '#FFF3CC', color: '#5C4000' },
     normal:     { bg: '#E1F5EE', color: '#085041' },
+    baja:       { bg: '#E3F2FD', color: '#0D47A1' },
   },
 };
 
@@ -63,6 +64,7 @@ export const DarkColors: typeof Colors = {
     elevada:    { bg: '#2D1800', color: '#FFD070' },
     normalAlta: { bg: '#252000', color: '#FFE566' },
     normal:     { bg: '#003322', color: '#66CC99' },
+    baja:       { bg: '#001B33', color: '#64B5F6' },
   },
 };
 

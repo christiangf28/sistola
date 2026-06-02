@@ -4,26 +4,29 @@ import { Alert, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpac
 
 import { ThemeColors } from '@/constants/theme';
 import { useColors } from '@/hooks/use-theme-color';
+import i18n from '@/utils/i18n';
 
 function getAnalysis(sys: number, dia: number, pul: number | null, nota: string, C: ThemeColors) {
+  const t = i18n.t.bind(i18n);
   let msg: string;
   let color: string;
 
-  if (sys >= 180 || dia >= 110)      { msg = '⚠️ Presión muy alta. Busca atención médica de inmediato o llama a los servicios de emergencia.'; color = C.bp.critica.bg; }
-  else if (sys >= 160 || dia >= 100) { msg = '🔴 Presión elevada Grado 2. Evita esfuerzo físico y consulta a tu médico pronto.'; color = C.bp.alta.bg; }
-  else if (sys >= 140 || dia >= 90)  { msg = '🟡 Presión elevada Grado 1. No es urgencia, pero revisa tu medicación y descansa.'; color = C.bp.elevada.bg; }
-  else if (sys >= 130 || dia >= 85)  { msg = '🟢 Presión normal-alta. Mantén tus hábitos. Buen trabajo.'; color = C.bp.normalAlta.bg; }
-  else                               { msg = '✅ Presión excelente. Sigue así. Registra mañana a la misma hora.'; color = C.bp.normal.bg; }
+  if (sys >= 180 || dia >= 110)      { msg = t('register.analysis.critical'); color = C.bp.critica.bg; }
+  else if (sys >= 160 || dia >= 100) { msg = t('register.analysis.high'); color = C.bp.alta.bg; }
+  else if (sys >= 140 || dia >= 90)  { msg = t('register.analysis.elevated'); color = C.bp.elevada.bg; }
+  else if (sys >= 130 || dia >= 85)  { msg = t('register.analysis.highNormal'); color = C.bp.normalAlta.bg; }
+  else if (sys < 90 || dia < 60)    { msg = t('register.analysis.low'); color = C.bp.baja.bg; }
+  else                               { msg = t('register.analysis.normal'); color = C.bp.normal.bg; }
 
   if (pul !== null) {
-    const esEjercicio = nota.toLowerCase().includes('ejercicio');
+    const esEjercicio = nota.toLowerCase().includes('ejercicio') || nota.toLowerCase().includes('exercise');
     if (esEjercicio) {
-      if (pul > 190) msg += '\n\n💓 Pulso muy alto incluso para ejercicio intenso (>190 bpm). Descansa y consulta si persiste.';
+      if (pul > 190) msg += t('register.analysis.pulseHighExercise');
     } else {
-      if (pul > 150)      msg += '\n\n💓 Pulso elevado (>150 bpm). Si estabas en reposo, consulta a tu médico.';
-      else if (pul > 100) msg += '\n\n💓 Pulso algo elevado (>100 bpm). Normal tras actividad física, pero el rango en reposo es 60–100 bpm.';
+      if (pul > 150)      msg += t('register.analysis.pulseHigh');
+      else if (pul > 100) msg += t('register.analysis.pulseMedium');
     }
-    if (pul < 50) msg += '\n\n💓 Pulso bajo (<50 bpm). Si tienes mareo o fatiga, consulta a tu médico.';
+    if (pul < 50) msg += t('register.analysis.pulseLow');
   }
 
   return { msg, color };
@@ -37,6 +40,7 @@ function isValid(val: string, min: number, max: number) {
 export default function RegisterScreen() {
   const Colors = useColors();
   const styles = useMemo(() => makeStyles(Colors), [Colors]);
+  const t = i18n.t.bind(i18n);
   const [sys, setSys] = useState('');
   const [dia, setDia] = useState('');
   const [pul, setPul] = useState('');
@@ -67,7 +71,7 @@ export default function RegisterScreen() {
 
   const pulNum = pul !== '' && isValid(pul, 40, 200) ? parseInt(pul) : null;
   const liveAnalysis = canSave ? getAnalysis(parseInt(sys), parseInt(dia), pulNum, nota, Colors) : null;
-  const displayAnalysis = liveAnalysis ?? savedAnalysis ?? { msg: 'Ingresa tu presión sistólica y diastólica para ver el análisis.', color: Colors.neutralBg };
+  const displayAnalysis = liveAnalysis ?? savedAnalysis ?? { msg: t('register.defaultAnalysis'), color: Colors.neutralBg };
   const postSaveMode = !canSave && savedAnalysis !== null;
 
   const handleSysChange = (v: string) => { if (savedAnalysis) setSavedAnalysis(null); setSys(v); };
@@ -95,16 +99,16 @@ export default function RegisterScreen() {
       setNota('');
       if (registro.sys >= 180 || registro.dia >= 110) {
         Alert.alert(
-          '⚠️ Presión crítica',
-          `Tu presión ${registro.sys}/${registro.dia} mmHg está en rango de crisis. Acude a urgencias o llama a los servicios de emergencia de tu país de inmediato.\n\nEsta app no reemplaza la atención médica.`,
-          [{ text: 'Entendido', style: 'cancel' }]
+          t('register.criticalTitle'),
+          t('register.criticalMsg', { sys: registro.sys, dia: registro.dia }),
+          [{ text: t('register.understood'), style: 'cancel' }]
         );
       } else {
         const esNormal = registro.sys < 130 && registro.dia < 85;
-        showToast(`✅ ${registro.sys}/${registro.dia} mmHg guardado · +10 aura${esNormal ? ' · +5 normal' : ''}`);
+        showToast(t('register.toastSaved', { sys: registro.sys, dia: registro.dia }) + (esNormal ? t('register.toastNormal') : ''));
       }
     } catch {
-      Alert.alert('Error', 'No se pudo guardar.');
+      Alert.alert('Error', t('register.errorSave'));
     }
   };
 
@@ -117,13 +121,13 @@ export default function RegisterScreen() {
           <Text style={{ fontWeight: '200' }}>istola</Text>
           <Text style={{ color: Colors.accent }}>.</Text>
         </Text>
-        <Text style={styles.greeting}>Registrar presión</Text>
-        <Text style={styles.sub}>Ingresa tus valores ahora</Text>
+        <Text style={styles.greeting}>{t('register.title')}</Text>
+        <Text style={styles.sub}>{t('register.sub')}</Text>
       </View>
 
       <View style={styles.body}>
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>¿Cuál es tu presión ahora?</Text>
+          <Text style={styles.cardLabel}>{t('register.whatIsYourPressure')}</Text>
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
@@ -146,11 +150,11 @@ export default function RegisterScreen() {
             />
           </View>
           <View style={styles.hintsRow}>
-            <Text style={styles.hint}>Sistólica</Text>
-            <Text style={styles.hint}>Diastólica</Text>
+            <Text style={styles.hint}>{t('register.systolic')}</Text>
+            <Text style={styles.hint}>{t('register.diastolic')}</Text>
           </View>
           <View style={styles.pulRow}>
-            <Text style={styles.pulLabel}>💓 Pulso</Text>
+            <Text style={styles.pulLabel}>{t('register.pulse')}</Text>
             <View style={styles.pulInputWrap}>
               <TextInput
                 style={[styles.pulInput, !pulOk && pul !== '' && { borderColor: Colors.accent }]}
@@ -171,14 +175,14 @@ export default function RegisterScreen() {
             style={styles.notaInput}
             value={nota}
             onChangeText={setNota}
-            placeholder="Nota opcional..."
+            placeholder={t('register.notePlaceholder')}
             placeholderTextColor={Colors.text.placeholder}
             maxLength={120}
             multiline
           />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsScroll}>
             <View style={styles.tagsRow}>
-              {['En reposo', 'Tras ejercicio', 'Con estrés', 'Tras medicamento', 'Con dolor', 'Tras dormir', 'Después de comer'].map(tag => (
+              {(i18n.t('register.tags') as unknown as string[]).map(tag => (
                 <TouchableOpacity
                   key={tag}
                   style={styles.tag}
@@ -195,8 +199,8 @@ export default function RegisterScreen() {
           <View style={styles.aiHeader}>
             <Text style={styles.aiIcon}>🩺</Text>
             <View>
-              <Text style={styles.aiName}>Asistente Sistola</Text>
-              <Text style={styles.aiSub}>{postSaveMode ? '✓ Análisis guardado' : 'Análisis en tiempo real'}</Text>
+              <Text style={styles.aiName}>{t('register.assistant')}</Text>
+              <Text style={styles.aiSub}>{postSaveMode ? t('register.savedAnalysis') : t('register.realTimeAnalysis')}</Text>
             </View>
           </View>
           <Text style={styles.aiMsg}>{displayAnalysis.msg}</Text>
@@ -205,13 +209,13 @@ export default function RegisterScreen() {
         {canSave && (
           <View style={styles.puntosPreview}>
             <Text style={styles.puntosText}>
-              ⚡ +10 aura{parseInt(sys) < 130 && parseInt(dia) < 85 ? ' · +5 lectura normal' : ''}
+              ⚡ +10 aura{parseInt(sys) < 130 && parseInt(dia) < 85 ? t('register.pointsNormal') : ''}
             </Text>
           </View>
         )}
 
         <TouchableOpacity style={[styles.cta, !canSave && { opacity: 0.4 }]} onPress={guardar} disabled={!canSave}>
-          <Text style={styles.ctaText}>✓ Guardar registro</Text>
+          <Text style={styles.ctaText}>{t('register.saveRecord')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

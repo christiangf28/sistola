@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
+import i18n from '@/utils/i18n';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -80,8 +81,8 @@ function calcComparativa(registros: Registro[]) {
 }
 
 const FACTORES = [
-  { key: 'estres',    label: 'Estrés',    icon: '🧠' },
-  { key: 'actividad', label: 'Actividad', icon: '🏃' },
+  { key: 'estres',    labelKey: 'home.stress',    icon: '🧠' },
+  { key: 'actividad', labelKey: 'home.activity',  icon: '🏃' },
 ];
 
 const CHECKIN_RESET = { sueno: 7, estres: 0, actividad: 0, med: false };
@@ -93,17 +94,18 @@ function suenoColor(h: number, C: ThemeColors) {
 }
 
 function getWellnessFeedback(sueno: number, estres: number, actividad: number): { msg: string; emoji: string } | null {
+  const t = i18n.t.bind(i18n);
   const malSueno = sueno < 6;
   const estresAlto = estres >= 4;
   const actividadAlta = actividad >= 4;
   const buenSueno = sueno >= 7;
   const estresOk = estres <= 2;
 
-  if (malSueno && estresAlto) return { emoji: '⚠️', msg: 'Poco descanso y mucho estrés pueden elevar tu presión. Prioriza el descanso hoy.' };
-  if (malSueno)               return { emoji: '💤', msg: `Dormiste ${sueno}h — menos de las 7h recomendadas. Intenta acostarte más temprano esta noche.` };
-  if (estresAlto)             return { emoji: '🧘', msg: 'Nivel de estrés alto. Una caminata corta o respiración profunda puede ayudar.' };
-  if (buenSueno && estresOk && actividadAlta) return { emoji: '🌟', msg: '¡Rutina excelente! Buen sueño, bajo estrés y buena actividad física.' };
-  if (buenSueno && estresOk)  return { emoji: '✅', msg: 'Buen descanso y bajo estrés. Sigue con esta rutina.' };
+  if (malSueno && estresAlto) return { emoji: '⚠️', msg: t('home.wellness.littleSleepHighStress') };
+  if (malSueno)               return { emoji: '💤', msg: t('home.wellness.littleSleep', { hours: sueno }) };
+  if (estresAlto)             return { emoji: '🧘', msg: t('home.wellness.highStress') };
+  if (buenSueno && estresOk && actividadAlta) return { emoji: '🌟', msg: t('home.wellness.excellent') };
+  if (buenSueno && estresOk)  return { emoji: '✅', msg: t('home.wellness.good') };
   return null;
 }
 
@@ -111,6 +113,7 @@ export default function HomeScreen() {
   const Colors = useColors();
   const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const router = useRouter();
+  const t = i18n.t.bind(i18n);
 
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [checkin, setCheckin] = useState<Checkin | null>(null);
@@ -185,7 +188,7 @@ export default function HomeScreen() {
   }, []));
 
   const setVal = (key: string, val: number) => {
-    setCheckinHoy(prev => ({ ...prev, [key]: val }));
+    setCheckinHoy(prev => ({ ...prev, [key]: (prev as any)[key] === val ? 0 : val }));
   };
 
   const guardarCheckin = async () => {
@@ -283,7 +286,7 @@ export default function HomeScreen() {
           <Text style={{ color: Colors.accent }}>.</Text>
         </Text>
         <View style={styles.greetingRow}>
-          <Text style={styles.greeting}>Hola, {nombre || 'bienvenido'} 👋</Text>
+          <Text style={styles.greeting}>{nombre ? t('home.greeting', { name: nombre }) : t('home.greetingDefault')}</Text>
           <View style={[styles.auraBadge, { backgroundColor: auraNivel.color + '33' }]}>
             <Text style={[styles.auraBadgeText, { color: auraNivel.color }]}>⚡ {aura} · {auraNivel.label}</Text>
           </View>
@@ -300,7 +303,7 @@ export default function HomeScreen() {
             </Text>
           </View>
         ) : (
-          <Text style={styles.nivelProgressLabel}>⭐ Nivel máximo alcanzado</Text>
+          <Text style={styles.nivelProgressLabel}>{t('home.maxLevel')}</Text>
         )}
         <Text style={styles.sub}>{fechaHoy()}</Text>
       </View>
@@ -308,20 +311,20 @@ export default function HomeScreen() {
       <View style={styles.body}>
 
         <View style={styles.card}>
-          <Text style={styles.sectionLabel}>HOY</Text>
+          <Text style={styles.sectionLabel}>{t('home.today')}</Text>
           <View style={styles.grid2x2}>
             <View style={styles.gridRow}>
               <View style={styles.gridTile}>
                 <Text style={styles.gridTileIcon}>❤️</Text>
-                <Text style={styles.gridTileLabel}>PRESIÓN</Text>
+                <Text style={styles.gridTileLabel}>{t('home.pressure')}</Text>
                 <Text style={styles.gridTileVal}>
                   {promedioHoy ? `${promedioHoy.sys}/${promedioHoy.dia}` : '—'}
-                  {registrosHoy.length > 1 && <Text style={{ fontSize: 10, color: Colors.text.muted }}>{'\n'}prom. {registrosHoy.length}</Text>}
+                  {registrosHoy.length > 1 && <Text style={{ fontSize: 10, color: Colors.text.muted }}>{'\n'}{t('home.avgOf', { n: registrosHoy.length })}</Text>}
                 </Text>
               </View>
               <View style={styles.gridTile}>
                 <Text style={styles.gridTileIcon}>🌙</Text>
-                <Text style={styles.gridTileLabel}>SUEÑO</Text>
+                <Text style={styles.gridTileLabel}>{t('home.sleep')}</Text>
                 <Text style={styles.gridTileVal}>
                   {checkin ? `${checkin.sueno}h` : '—'}
                 </Text>
@@ -330,14 +333,14 @@ export default function HomeScreen() {
             <View style={styles.gridRow}>
               <View style={styles.gridTile}>
                 <Text style={styles.gridTileIcon}>🧠</Text>
-                <Text style={styles.gridTileLabel}>ESTRÉS</Text>
+                <Text style={styles.gridTileLabel}>{t('home.stress')}</Text>
                 <Text style={styles.gridTileVal}>
                   {checkin ? `${checkin.estres}/5` : '—'}
                 </Text>
               </View>
               <View style={styles.gridTile}>
                 <Text style={styles.gridTileIcon}>💊</Text>
-                <Text style={styles.gridTileLabel}>MEDICAMENTO</Text>
+                <Text style={styles.gridTileLabel}>{t('home.medication')}</Text>
                 <Text style={[styles.gridTileVal, checkin !== null && { color: checkin.med ? Colors.success : Colors.text.muted }]}>
                   {checkin === null ? '—' : checkin.med ? '✓' : '✗'}
                 </Text>
@@ -348,13 +351,13 @@ export default function HomeScreen() {
 
         <View style={styles.card}>
           <View style={styles.rowBetween}>
-            <Text style={styles.sectionLabel}>CHECK-IN DIARIO</Text>
-            {guardado && <View style={styles.pill}><Text style={[styles.pillText, { color: Colors.bp.normal.color }]}>✓ Aura cargada</Text></View>}
+            <Text style={styles.sectionLabel}>{t('home.dailyCheckin')}</Text>
+            {guardado && <View style={styles.pill}><Text style={[styles.pillText, { color: Colors.bp.normal.color }]}>{t('home.auraLoaded')}</Text></View>}
           </View>
 
           <View style={styles.ciRow}>
             <View>
-              <Text style={styles.ciLabel}>🌙 Sueño nocturno</Text>
+              <Text style={styles.ciLabel}>{t('home.nightSleep')}</Text>
             </View>
             {guardado ? (
               <Text style={[styles.suenoVal, { color: suenoColor(suenoMostrado, Colors) }]}>{suenoMostrado}h</Text>
@@ -381,7 +384,7 @@ export default function HomeScreen() {
             const val = guardado ? (checkin as any)?.[f.key] : (checkinHoy as any)[f.key];
             return (
               <View key={f.key} style={styles.ciRow}>
-                <Text style={styles.ciLabel}>{f.icon} {f.label}</Text>
+                <Text style={styles.ciLabel}>{f.icon} {t(f.labelKey)}</Text>
                 <View style={styles.dots}>
                   {[1,2,3,4,5].map(n => (
                     <TouchableOpacity
@@ -409,7 +412,7 @@ export default function HomeScreen() {
 
           {!guardado && (
             <TouchableOpacity style={styles.ctaSmall} onPress={guardarCheckin}>
-              <Text style={styles.ctaSmallText}>Guardar check-in</Text>
+              <Text style={styles.ctaSmallText}>{t('home.saveCheckin')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -433,7 +436,7 @@ export default function HomeScreen() {
 
         {insight && (
           <View style={styles.card}>
-            <Text style={styles.sectionLabel}>INSIGHT</Text>
+            <Text style={styles.sectionLabel}>{t('home.insight')}</Text>
             <View style={styles.insightBody}>
               <Text style={styles.insightIcon}>{insight.icono}</Text>
               <Text style={styles.insightTexto}>{insight.texto}</Text>
@@ -444,7 +447,7 @@ export default function HomeScreen() {
         {ultimo ? (
           <View ref={tarjetaRef} style={styles.card} collapsable={false}>
             <View style={styles.rowBetween}>
-              <Text style={styles.sectionLabel}>ÚLTIMO REGISTRO</Text>
+              <Text style={styles.sectionLabel}>{t('home.lastRecord')}</Text>
               <TouchableOpacity onPress={handleCompartirTarjeta} style={styles.chartShareBtn}>
                 <Text style={styles.chartShareBtnText}>📤</Text>
               </TouchableOpacity>
@@ -457,27 +460,27 @@ export default function HomeScreen() {
             <Text style={styles.fechaText}>{formatFecha(ultimo.fecha)}</Text>
             {meta && (
               <Text style={[styles.metaText, { color: (ultimo.sys <= meta.sys && ultimo.dia <= meta.dia) ? Colors.success : Colors.accent }]}>
-                {(ultimo.sys <= meta.sys && ultimo.dia <= meta.dia) ? '✓ Dentro de tu meta' : `Meta: ${meta.sys}/${meta.dia}`}
+                {(ultimo.sys <= meta.sys && ultimo.dia <= meta.dia) ? t('home.withinGoal') : t('home.goal', { sys: meta.sys, dia: meta.dia })}
               </Text>
             )}
           </View>
         ) : (
           <View style={[styles.card, styles.emptyCard]}>
             <Text style={styles.emptyIcon}>💜</Text>
-            <Text style={styles.emptyTitle}>Sin registros aún</Text>
-            <Text style={styles.emptyText}>Registra tu primera medición para ver tu tendencia y estadísticas aquí.</Text>
+            <Text style={styles.emptyTitle}>{t('home.noRecordsTitle')}</Text>
+            <Text style={styles.emptyText}>{t('home.noRecordsText')}</Text>
             <TouchableOpacity style={styles.emptyBtn} onPress={() => router.navigate('/(tabs)/explore')}>
-              <Text style={styles.emptyBtnText}>Registrar ahora</Text>
+              <Text style={styles.emptyBtnText}>{t('home.registerNow')}</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {comparativa && (
           <View style={styles.card}>
-            <Text style={styles.sectionLabel}>ESTA SEMANA VS ANTERIOR</Text>
+            <Text style={styles.sectionLabel}>{t('home.thisVsLastWeek')}</Text>
             <View style={styles.comparativaRow}>
               <View style={styles.comparativaItem}>
-                <Text style={styles.comparativaLabel}>Esta semana</Text>
+                <Text style={styles.comparativaLabel}>{t('home.thisWeek')}</Text>
                 <Text style={styles.comparativaVal}>{comparativa.avgEsta}</Text>
               </View>
               <Text style={[styles.comparativaFlecha, {
@@ -486,7 +489,7 @@ export default function HomeScreen() {
                 {comparativa.delta < -3 ? '↓' : comparativa.delta > 3 ? '↑' : '→'}
               </Text>
               <View style={styles.comparativaItem}>
-                <Text style={styles.comparativaLabel}>Semana anterior</Text>
+                <Text style={styles.comparativaLabel}>{t('home.prevWeek')}</Text>
                 <Text style={styles.comparativaVal}>{comparativa.avgAnterior}</Text>
               </View>
             </View>
@@ -494,10 +497,10 @@ export default function HomeScreen() {
               color: comparativa.delta < -3 ? Colors.success : comparativa.delta > 3 ? Colors.accent : Colors.text.muted
             }]}>
               {comparativa.delta < -3
-                ? `${Math.abs(comparativa.delta)} mmHg menos que la semana anterior`
+                ? t('home.deltaDown', { n: Math.abs(comparativa.delta) })
                 : comparativa.delta > 3
-                ? `${comparativa.delta} mmHg más que la semana anterior`
-                : 'Sin cambio significativo'}
+                ? t('home.deltaUp', { n: comparativa.delta })
+                : t('home.deltaEqual')}
             </Text>
           </View>
         )}
@@ -505,7 +508,7 @@ export default function HomeScreen() {
         {registros.length > 0 && (
           <View style={styles.card}>
             <View style={styles.rowBetween}>
-              <Text style={styles.sectionLabel}>RACHA</Text>
+              <Text style={styles.sectionLabel}>{t('home.weeklyStreak')}</Text>
               {racha >= 7 && (
                 <View style={[styles.multiBadge, { backgroundColor: auraNivel.color + '22' }]}>
                   <Text style={[styles.multiBadgeText, { color: auraNivel.color }]}>
@@ -517,7 +520,7 @@ export default function HomeScreen() {
             <View style={styles.rachaRow}>
               <View style={styles.rachaLeft}>
                 <Text style={styles.rachaNum}>{racha}</Text>
-                <Text style={styles.rachaLbl}>días{'\n'}seguidos</Text>
+                <Text style={styles.rachaLbl}>{t('home.streakLabel')}</Text>
               </View>
               <View style={styles.semana}>
                 {ultimos7.map(({ label, fecha }) => {
@@ -537,7 +540,7 @@ export default function HomeScreen() {
         {registros.length > 0 && (
           <View style={styles.card}>
             <View style={styles.rowBetween}>
-              <Text style={styles.sectionLabel}>LOGROS</Text>
+              <Text style={styles.sectionLabel}>{t('home.achievements')}</Text>
               <Text style={styles.logrosCount}>
                 {logros.filter(l => l.desbloqueado).length}/{logros.length}
               </Text>
@@ -566,7 +569,7 @@ export default function HomeScreen() {
         {registros.length >= 2 && (
           <View ref={chartRef} style={styles.card} collapsable={false}>
             <View style={styles.rowBetween}>
-              <Text style={styles.sectionLabel}>TENDENCIA</Text>
+              <Text style={styles.sectionLabel}>{t('home.trend')}</Text>
               <View style={styles.row}>
                 <View style={[styles.legendDot, { backgroundColor: Colors.primary }]} /><Text style={styles.legendLabel}>SIS</Text>
                 <View style={[styles.legendDot, { backgroundColor: Colors.accent }]} /><Text style={styles.legendLabel}>DIA</Text>
@@ -583,10 +586,10 @@ export default function HomeScreen() {
         {Object.keys(checkinsHistorial).length >= 2 && (
           <View style={styles.card}>
             <View style={styles.rowBetween}>
-              <Text style={styles.sectionLabel}>SUEÑO Y ESTRÉS</Text>
+              <Text style={styles.sectionLabel}>{t('home.sleepAndStress')}</Text>
               <View style={styles.row}>
-                <View style={[styles.legendDot, { backgroundColor: '#5B9BD5' }]} /><Text style={styles.legendLabel}>Sueño</Text>
-                <View style={[styles.legendDot, { backgroundColor: Colors.accent }]} /><Text style={styles.legendLabel}>Estrés</Text>
+                <View style={[styles.legendDot, { backgroundColor: '#5B9BD5' }]} /><Text style={styles.legendLabel}>{t('home.sleep')}</Text>
+                <View style={[styles.legendDot, { backgroundColor: Colors.accent }]} /><Text style={styles.legendLabel}>{t('home.stress')}</Text>
               </View>
             </View>
             <CheckinChart entries={Object.entries(checkinsHistorial).map(([fecha, c]) => ({ ...c, fecha })).sort((a, b) => b.fecha.localeCompare(a.fecha))} />
@@ -596,9 +599,9 @@ export default function HomeScreen() {
         {registros.length > 0 && (
           <View style={styles.card}>
             <View style={styles.rowBetween}>
-              <Text style={styles.sectionLabel}>HISTORIAL</Text>
+              <Text style={styles.sectionLabel}>{t('home.historySection')}</Text>
               <TouchableOpacity onPress={() => router.navigate('/(tabs)/historial')}>
-                <Text style={styles.verTodo}>Ver todo →</Text>
+                <Text style={styles.verTodo}>{t('home.seeAll')}</Text>
               </TouchableOpacity>
             </View>
             {registros.slice(0, 7).map((r, i) => {
@@ -620,9 +623,9 @@ export default function HomeScreen() {
 
         <View style={styles.card}>
           <TouchableOpacity style={styles.recordatorioRow} onPress={toggleNotifExpanded}>
-            <Text style={[styles.sectionLabel, { marginBottom: 0 }]}>RECORDATORIO</Text>
+            <Text style={[styles.sectionLabel, { marginBottom: 0 }]}>{t('home.reminder')}</Text>
             <Text style={styles.recordatorioValue}>
-              {notifTime ? `🔔 ${formatNotifTime(notifTime)}` : '🔕 Sin recordatorio'}
+              {notifTime ? `🔔 ${formatNotifTime(notifTime)}` : `🔕 ${t('home.reminderOff')}`}
             </Text>
           </TouchableOpacity>
           {notifExpanded && (
@@ -652,12 +655,12 @@ export default function HomeScreen() {
                   onPress={handleGuardarHorario}
                   disabled={!pickerValid}
                 >
-                  <Text style={styles.saveTimeBtnText}>Guardar</Text>
+                  <Text style={styles.saveTimeBtnText}>{t('home.saveTime')}</Text>
                 </TouchableOpacity>
               </View>
               {notifTime && (
                 <TouchableOpacity onPress={handleDesactivar}>
-                  <Text style={styles.desactivarText}>Desactivar recordatorio</Text>
+                  <Text style={styles.desactivarText}>{t('home.deactivate')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -685,23 +688,23 @@ export default function HomeScreen() {
 
                   {r.nota ? (
                     <View style={styles.modalSection}>
-                      <Text style={styles.modalSectionLabel}>NOTA</Text>
+                      <Text style={styles.modalSectionLabel}>{t('history.note')}</Text>
                       <Text style={styles.modalNota}>{r.nota}</Text>
                     </View>
                   ) : null}
 
                   {c ? (
                     <View style={styles.modalSection}>
-                      <Text style={styles.modalSectionLabel}>CHECK-IN DEL DÍA</Text>
-                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>🌙 Sueño</Text><Text style={styles.modalCheckinVal}>{c.sueno}h</Text></View>
-                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>🧠 Estrés</Text><Text style={styles.modalCheckinVal}>{c.estres}/5</Text></View>
-                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>🏃 Actividad</Text><Text style={styles.modalCheckinVal}>{c.actividad}/5</Text></View>
-                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>💊 Medicamento</Text><Text style={[styles.modalCheckinVal, { color: c.med ? Colors.success : Colors.text.muted }]}>{c.med ? '✓ Tomado' : '✗ No tomado'}</Text></View>
+                      <Text style={styles.modalSectionLabel}>{t('history.checkinTitle')}</Text>
+                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>{t('history.checkinSleep')}</Text><Text style={styles.modalCheckinVal}>{c.sueno}h</Text></View>
+                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>{t('history.checkinStress')}</Text><Text style={styles.modalCheckinVal}>{c.estres}/5</Text></View>
+                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>{t('history.checkinActivity')}</Text><Text style={styles.modalCheckinVal}>{c.actividad}/5</Text></View>
+                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>{t('history.checkinMed')}</Text><Text style={[styles.modalCheckinVal, { color: c.med ? Colors.success : Colors.text.muted }]}>{c.med ? t('history.medTaken') : t('history.medNotTaken')}</Text></View>
                     </View>
                   ) : null}
 
                   <TouchableOpacity style={styles.modalClose} onPress={() => setDetalle(null)}>
-                    <Text style={styles.modalCloseText}>Cerrar</Text>
+                    <Text style={styles.modalCloseText}>{t('history.close')}</Text>
                   </TouchableOpacity>
                 </>
               );
@@ -715,7 +718,7 @@ export default function HomeScreen() {
       <Animated.View style={[styles.logroToastWrap, { opacity: logroToastAnim, transform: [{ translateY: logroToastAnim.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }) }] }]}>
         <Text style={styles.logroToastIcon}>{logroToast.icono}</Text>
         <View>
-          <Text style={styles.logroToastSuper}>¡LOGRO DESBLOQUEADO!</Text>
+          <Text style={styles.logroToastSuper}>{t('home.newAchievement')}</Text>
           <Text style={styles.logroToastLabel}>{logroToast.titulo}</Text>
         </View>
       </Animated.View>

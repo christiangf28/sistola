@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
+import i18n from '@/utils/i18n';
 import * as Print from 'expo-print';
 import { useFocusEffect } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -13,12 +14,49 @@ type Registro = { sys: number; dia: number; pul?: number; nota?: string | null; 
 type Checkin  = { sueno: number; estres: number; actividad: number; med?: boolean };
 
 const CLASES = ['Normal', 'Normal-alta', 'Elevada', 'Alta', 'Crítica'];
-const PERIODOS: { label: string; dias: number | null }[] = [
-  { label: 'Todo',     dias: null },
-  { label: '7 días',  dias: 7    },
-  { label: '30 días', dias: 30   },
-  { label: '3 meses', dias: 90   },
-];
+const PERIODOS_DIAS: (number | null)[] = [null, 7, 30, 90];
+
+type TempDate = { day: number; month: number; year: number };
+
+function daysInMonth(month: number, year: number) {
+  return new Date(year, month, 0).getDate();
+}
+
+function stepDate(curr: TempDate, field: 'day' | 'month' | 'year', dir: 1 | -1): TempDate {
+  const next = { ...curr };
+  if (field === 'day') {
+    const max = daysInMonth(curr.month, curr.year);
+    next.day = ((curr.day - 1 + dir + max) % max) + 1;
+  } else if (field === 'month') {
+    next.month = ((curr.month - 1 + dir + 12) % 12) + 1;
+    next.day = Math.min(next.day, daysInMonth(next.month, next.year));
+  } else {
+    const maxYear = new Date().getFullYear();
+    next.year = Math.max(2020, Math.min(maxYear, curr.year + dir));
+    next.day = Math.min(next.day, daysInMonth(next.month, next.year));
+  }
+  return next;
+}
+
+function toDate(d: TempDate) {
+  return new Date(d.year, d.month - 1, d.day);
+}
+
+function formatRangoChip(desde: Date, hasta: Date) {
+  const locale = i18n.locale === 'en' ? 'en' : 'es';
+  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+  return `${desde.toLocaleDateString(locale, opts)} – ${hasta.toLocaleDateString(locale, opts)}`;
+}
+
+function todayParts(): TempDate {
+  const d = new Date();
+  return { day: d.getDate(), month: d.getMonth() + 1, year: d.getFullYear() };
+}
+
+function firstOfMonthParts(): TempDate {
+  const d = new Date();
+  return { day: 1, month: d.getMonth() + 1, year: d.getFullYear() };
+}
 
 function getPill(sys: number, dia: number, C: ThemeColors) {
   if (sys >= 180 || dia >= 110) return { label: 'Crítica',     ...C.bp.critica };
@@ -47,14 +85,16 @@ function csvField(val: string | null | undefined): string {
 }
 
 function buildCSV(registros: Registro[], checkins: Record<string, Checkin>, C: ThemeColors): string {
-  const header = 'Fecha,Sistólica (mmHg),Diastólica (mmHg),Pulso (bpm),Clasificación,Nota,Sueño (h),Estrés (1-5),Actividad (1-5),Medicamento';
+  const t = i18n.t.bind(i18n);
+  const locale = i18n.locale === 'en' ? 'en' : 'es';
+  const header = t('history.csvHeader');
   const rows = registros.map(r => {
-    const fecha = new Date(r.fecha).toLocaleString('es');
+    const fecha = new Date(r.fecha).toLocaleString(locale);
     const clase = getPill(r.sys, r.dia, C).label;
     const c = checkins[r.fecha.slice(0, 10)];
     return [
       fecha, r.sys, r.dia, r.pul ?? '', clase, csvField(r.nota),
-      c ? c.sueno : '', c ? c.estres : '', c ? c.actividad : '', c ? (c.med ? 'Sí' : 'No') : '',
+      c ? c.sueno : '', c ? c.estres : '', c ? c.actividad : '', c ? (c.med ? t('history.csvYes') : t('history.csvNo')) : '',
     ].join(',');
   });
   return [header, ...rows].join('\n');
@@ -71,13 +111,15 @@ function pillClass(label: string) {
 }
 
 async function buildPDF(registros: Registro[], checkins: Record<string, Checkin>, C: ThemeColors): Promise<string> {
+  const t = i18n.t.bind(i18n);
+  const locale = i18n.locale === 'en' ? 'en' : 'es';
   const perfilRaw = await AsyncStorage.getItem('perfil');
   const perfil = perfilRaw ? JSON.parse(perfilRaw) : {};
-  const nombre = perfil.nombre || 'Sin nombre';
+  const nombre = perfil.nombre || t('history.pdfNoName');
   const edad   = perfil.edad   || '—';
   const meds: Medicacion[] = Array.isArray(perfil.medicamentos) ? perfil.medicamentos : [];
 
-  const fecha = new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const fecha = new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   const prom = registros.length ? {
     sys: Math.round(registros.reduce((s, r) => s + r.sys, 0) / registros.length),
@@ -89,7 +131,7 @@ async function buildPDF(registros: Registro[], checkins: Record<string, Checkin>
   const filas = registros.map(r => {
     const p = getPill(r.sys, r.dia, C);
     const c = checkins[r.fecha.slice(0, 10)];
-    const f = new Date(r.fecha).toLocaleString('es', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const f = new Date(r.fecha).toLocaleString(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     return `<tr>
       <td>${f}</td>
       <td><strong>${r.sys}/${r.dia}</strong></td>
@@ -130,45 +172,47 @@ async function buildPDF(registros: Registro[], checkins: Record<string, Checkin>
     .med{background:#F8F7FF;border-radius:6px;padding:7px 12px;margin-bottom:6px}
     .footer{margin-top:32px;font-size:10px;color:#ccc;text-align:center}
   </style></head><body>
-    <h1>Sistola — Reporte de Presión Arterial</h1>
-    <p class="sub">Generado: ${fecha}</p>
+    <h1>${t('history.pdfTitle')}</h1>
+    <p class="sub">${t('history.pdfGenerated')} ${fecha}</p>
 
     <div class="section">
-      <div class="st">Paciente</div>
+      <div class="st">${t('history.pdfPatient')}</div>
       <div class="grid2">
-        <div class="box"><div class="bl">Nombre</div><div class="bv">${nombre}</div></div>
-        <div class="box"><div class="bl">Edad</div><div class="bv">${edad} años</div></div>
+        <div class="box"><div class="bl">${t('history.pdfName')}</div><div class="bv">${nombre}</div></div>
+        <div class="box"><div class="bl">${t('history.pdfAge')}</div><div class="bv">${edad} ${t('history.pdfAgeUnit')}</div></div>
       </div>
     </div>
 
     ${meds.length ? `<div class="section">
-      <div class="st">Medicación</div>
+      <div class="st">${t('history.pdfMedication')}</div>
       ${meds.map(m => `<div class="med">${m.nombre} · ${[m.dosis, m.frecuencia].filter(Boolean).join(' ')}</div>`).join('')}
     </div>` : ''}
 
     ${prom ? `<div class="section">
-      <div class="st">Estadísticas · ${registros.length} registros</div>
+      <div class="st">${t('history.pdfStats', { n: registros.length })}</div>
       <div class="stats">
-        <div class="stat"><div class="sl">Promedio</div><div class="sv">${prom.sys}/${prom.dia}</div></div>
-        <div class="stat"><div class="sl">Mínimo</div><div class="sv">${minR!.sys}/${minR!.dia}</div></div>
-        <div class="stat"><div class="sl">Máximo</div><div class="sv">${maxR!.sys}/${maxR!.dia}</div></div>
+        <div class="stat"><div class="sl">${t('history.pdfAverage')}</div><div class="sv">${prom.sys}/${prom.dia}</div></div>
+        <div class="stat"><div class="sl">${t('history.pdfMin')}</div><div class="sv">${minR!.sys}/${minR!.dia}</div></div>
+        <div class="stat"><div class="sl">${t('history.pdfMax')}</div><div class="sv">${maxR!.sys}/${maxR!.dia}</div></div>
       </div>
     </div>` : ''}
 
     <div class="section">
-      <div class="st">Registros</div>
+      <div class="st">${t('history.pdfRecords')}</div>
       <table>
-        <tr><th>Fecha</th><th>Presión</th><th>Clasificación</th><th>Pulso</th><th>Sueño</th><th>Estrés</th><th>Actividad</th><th>Med</th><th>Nota</th></tr>
+        <tr><th>${t('history.pdfDate')}</th><th>${t('history.pdfPressure')}</th><th>${t('history.pdfClass')}</th><th>${t('history.pdfPulse')}</th><th>${t('history.pdfSleep')}</th><th>${t('history.pdfStress')}</th><th>${t('history.pdfActivity')}</th><th>${t('history.pdfMed')}</th><th>${t('history.pdfNote')}</th></tr>
         ${filas}
       </table>
     </div>
 
-    <div class="footer">Reporte generado por Sistola · Solo informativo, no reemplaza consulta médica profesional</div>
+    <div class="footer">${t('history.pdfFooter')}</div>
   </body></html>`;
 }
 
 function buildShareText(registros: Registro[], C: ThemeColors) {
-  const hoy = new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const t = i18n.t.bind(i18n);
+  const locale = i18n.locale === 'en' ? 'en' : 'es';
+  const hoy = new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const prom = {
     sys: Math.round(registros.reduce((s, r) => s + r.sys, 0) / registros.length),
     dia: Math.round(registros.reduce((s, r) => s + r.dia, 0) / registros.length),
@@ -179,9 +223,9 @@ function buildShareText(registros: Registro[], C: ThemeColors) {
     return `${formatFechaCorta(r.fecha)}  ${r.sys}/${r.dia} mmHg  ${p.label}${nota}`;
   }).join('\n');
   return [
-    `📊 Historial de presión arterial — Sistola`,
-    `Generado: ${hoy}`,
-    `Promedio: ${prom.sys}/${prom.dia} mmHg · ${registros.length} registros`,
+    t('history.shareTextHeader'),
+    `${t('history.shareTextGenerated')} ${hoy}`,
+    t('history.shareTextAvg', { sys: prom.sys, dia: prom.dia, n: registros.length }),
     ``,
     lineas,
   ].join('\n');
@@ -190,9 +234,15 @@ function buildShareText(registros: Registro[], C: ThemeColors) {
 export default function HistorialScreen() {
   const Colors = useColors();
   const styles = useMemo(() => makeStyles(Colors), [Colors]);
+  const t = i18n.t.bind(i18n);
+  const periodLabels = i18n.t('history.periods') as unknown as string[];
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [filtroClase, setFiltroClase] = useState<string | null>(null);
   const [filtroDias, setFiltroDias] = useState<number | null>(null);
+  const [filtroRango, setFiltroRango] = useState<{ desde: Date; hasta: Date } | null>(null);
+  const [rangoModal, setRangoModal] = useState(false);
+  const [tempDesde, setTempDesde] = useState<TempDate>(firstOfMonthParts);
+  const [tempHasta, setTempHasta] = useState<TempDate>(todayParts);
   const [detalle, setDetalle] = useState<{ registro: Registro; checkin: Checkin | null } | null>(null);
   const [exportando, setExportando] = useState(false);
 
@@ -202,7 +252,11 @@ export default function HistorialScreen() {
 
   const registrosFiltrados = useMemo(() => {
     let r = registros;
-    if (filtroDias !== null) {
+    if (filtroRango) {
+      const desde = new Date(filtroRango.desde); desde.setHours(0, 0, 0, 0);
+      const hasta = new Date(filtroRango.hasta); hasta.setHours(23, 59, 59, 999);
+      r = r.filter(reg => { const d = new Date(reg.fecha); return d >= desde && d <= hasta; });
+    } else if (filtroDias !== null) {
       const desde = new Date();
       desde.setDate(desde.getDate() - filtroDias);
       r = r.filter(reg => new Date(reg.fecha) >= desde);
@@ -211,9 +265,34 @@ export default function HistorialScreen() {
       r = r.filter(reg => getPill(reg.sys, reg.dia, Colors).label === filtroClase);
     }
     return r;
-  }, [registros, filtroClase, filtroDias, Colors]);
+  }, [registros, filtroClase, filtroDias, filtroRango, Colors]);
 
-  const filtroActivo = filtroClase !== null || filtroDias !== null;
+  const filtroActivo = filtroClase !== null || filtroDias !== null || filtroRango !== null;
+
+  const abrirRangoModal = () => {
+    if (filtroRango) {
+      setTempDesde({ day: filtroRango.desde.getDate(), month: filtroRango.desde.getMonth() + 1, year: filtroRango.desde.getFullYear() });
+      setTempHasta({ day: filtroRango.hasta.getDate(), month: filtroRango.hasta.getMonth() + 1, year: filtroRango.hasta.getFullYear() });
+    } else {
+      setTempDesde(firstOfMonthParts());
+      setTempHasta(todayParts());
+    }
+    setRangoModal(true);
+  };
+
+  const aplicarRango = () => {
+    const desde = toDate(tempDesde);
+    const hasta = toDate(tempHasta);
+    if (desde <= hasta) {
+      setFiltroRango({ desde, hasta });
+      setFiltroDias(null);
+      setRangoModal(false);
+    } else {
+      setFiltroRango({ desde: hasta, hasta: desde });
+      setFiltroDias(null);
+      setRangoModal(false);
+    }
+  };
 
   const swipeRefs = useRef<Record<string, Swipeable | null>>({});
 
@@ -231,7 +310,7 @@ export default function HistorialScreen() {
 
   const renderDelete = (fecha: string) => (
     <TouchableOpacity onPress={() => handleEliminar(fecha)} style={styles.deleteAction}>
-      <Text style={styles.deleteText}>Eliminar</Text>
+      <Text style={styles.deleteText}>{t('history.deleteRecord')}</Text>
     </TouchableOpacity>
   );
 
@@ -248,9 +327,9 @@ export default function HistorialScreen() {
       const csv = buildCSV(src, checkins, Colors);
       const path = FileSystem.cacheDirectory + 'sistola_historial.csv';
       await FileSystem.writeAsStringAsync(path, csv, { encoding: 'utf8' });
-      await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Exportar historial', UTI: 'public.comma-separated-values-text' });
+      await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: t('history.shareTitle'), UTI: 'public.comma-separated-values-text' });
     } catch {
-      Alert.alert('Error', 'No se pudo exportar el historial.');
+      Alert.alert('Error', t('history.errorExport'));
     } finally {
       setExportando(false);
     }
@@ -270,9 +349,9 @@ export default function HistorialScreen() {
       const { uri } = await Print.printToFileAsync({ html });
       const dest = FileSystem.cacheDirectory + 'sistola_reporte.pdf';
       await FileSystem.copyAsync({ from: uri, to: dest });
-      await Sharing.shareAsync(dest, { mimeType: 'application/pdf', dialogTitle: 'Reporte Sistola', UTI: 'com.adobe.pdf' });
+      await Sharing.shareAsync(dest, { mimeType: 'application/pdf', dialogTitle: t('history.pdfTitle'), UTI: 'com.adobe.pdf' });
     } catch {
-      Alert.alert('Error', 'No se pudo generar el PDF.');
+      Alert.alert('Error', t('history.errorPDF'));
     } finally {
       setExportando(false);
     }
@@ -281,13 +360,13 @@ export default function HistorialScreen() {
   const handleCompartir = () => {
     const src = filtroActivo ? registrosFiltrados : registros;
     Alert.alert(
-      'Compartir historial',
-      '¿Cómo quieres exportar tus datos?',
+      t('history.shareTitle'),
+      t('history.shareHow'),
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Texto', onPress: () => Share.share({ message: buildShareText(src, Colors) }) },
+        { text: t('history.cancel'), style: 'cancel' },
+        { text: t('history.text'), onPress: () => Share.share({ message: buildShareText(src, Colors) }) },
         { text: 'CSV', onPress: handleExportarCSV },
-        { text: 'PDF (médico)', onPress: handleExportarPDF },
+        { text: t('history.pdf'), onPress: handleExportarPDF },
       ],
     );
   };
@@ -337,8 +416,8 @@ export default function HistorialScreen() {
   }, [registrosFiltrados]);
 
   const subText = filtroActivo
-    ? `${registrosFiltrados.length} de ${registros.length} registros`
-    : `${registros.length} registros`;
+    ? t('history.filteredRecords', { filtered: registrosFiltrados.length, total: registros.length })
+    : t('history.records', { n: registros.length });
 
   return (
     <ScrollView style={styles.container}>
@@ -351,11 +430,11 @@ export default function HistorialScreen() {
           </Text>
           {registros.length > 0 && (
             <TouchableOpacity onPress={handleCompartir} style={styles.shareBtn} disabled={exportando}>
-              <Text style={styles.shareBtnText}>{exportando ? 'Exportando…' : '📤 Compartir'}</Text>
+              <Text style={styles.shareBtnText}>{exportando ? t('history.exporting') : t('history.share')}</Text>
             </TouchableOpacity>
           )}
         </View>
-        <Text style={styles.title}>Historial</Text>
+        <Text style={styles.title}>{t('history.title')}</Text>
         <Text style={styles.sub}>{subText}</Text>
       </View>
 
@@ -368,7 +447,7 @@ export default function HistorialScreen() {
                   onPress={() => setFiltroClase(null)}
                   style={[styles.chip, filtroClase === null && styles.chipActive]}
                 >
-                  <Text style={[styles.chipText, filtroClase === null && styles.chipTextActive]}>Todas</Text>
+                  <Text style={[styles.chipText, filtroClase === null && styles.chipTextActive]}>{t('history.all')}</Text>
                 </TouchableOpacity>
                 {CLASES.map(c => (
                   <TouchableOpacity
@@ -383,15 +462,23 @@ export default function HistorialScreen() {
             </ScrollView>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
               <View style={styles.chipRow}>
-                {PERIODOS.map(p => (
+                {PERIODOS_DIAS.map((dias, idx) => (
                   <TouchableOpacity
-                    key={p.label}
-                    onPress={() => setFiltroDias(p.dias)}
-                    style={[styles.chip, filtroDias === p.dias && styles.chipActive]}
+                    key={idx}
+                    onPress={() => { setFiltroDias(dias); setFiltroRango(null); }}
+                    style={[styles.chip, filtroDias === dias && filtroRango === null && styles.chipActive]}
                   >
-                    <Text style={[styles.chipText, filtroDias === p.dias && styles.chipTextActive]}>{p.label}</Text>
+                    <Text style={[styles.chipText, filtroDias === dias && filtroRango === null && styles.chipTextActive]}>{periodLabels[idx]}</Text>
                   </TouchableOpacity>
                 ))}
+                <TouchableOpacity
+                  onPress={abrirRangoModal}
+                  style={[styles.chip, filtroRango !== null && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, filtroRango !== null && styles.chipTextActive]}>
+                    {filtroRango ? formatRangoChip(filtroRango.desde, filtroRango.hasta) : `📅 ${t('history.customRange')}`}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </ScrollView>
           </View>
@@ -400,15 +487,15 @@ export default function HistorialScreen() {
         {stats && (
           <View style={styles.statsCard}>
             <View style={styles.statCol}>
-              <Text style={styles.statLabel}>PROMEDIO</Text>
+              <Text style={styles.statLabel}>{t('history.stats.average')}</Text>
               <Text style={styles.statVal}>{stats.prom.sys}/{stats.prom.dia}</Text>
             </View>
             <View style={[styles.statCol, styles.statBorder]}>
-              <Text style={styles.statLabel}>MÍNIMO</Text>
+              <Text style={styles.statLabel}>{t('history.stats.min')}</Text>
               <Text style={styles.statVal}>{stats.min.sys}/{stats.min.dia}</Text>
             </View>
             <View style={styles.statCol}>
-              <Text style={styles.statLabel}>MÁXIMO</Text>
+              <Text style={styles.statLabel}>{t('history.stats.max')}</Text>
               <Text style={styles.statVal}>{stats.max.sys}/{stats.max.dia}</Text>
             </View>
           </View>
@@ -417,15 +504,15 @@ export default function HistorialScreen() {
         {pulStats && (
           <View style={[styles.statsCard, { gap: 0 }]}>
             <View style={styles.statCol}>
-              <Text style={styles.statLabel}>💓 PULSO PROM</Text>
+              <Text style={styles.statLabel}>{t('history.stats.pulseAvg')}</Text>
               <Text style={styles.statVal}>{pulStats.prom} bpm</Text>
             </View>
             <View style={[styles.statCol, styles.statBorder]}>
-              <Text style={styles.statLabel}>MÍNIMO</Text>
+              <Text style={styles.statLabel}>{t('history.stats.min')}</Text>
               <Text style={styles.statVal}>{pulStats.min}</Text>
             </View>
             <View style={styles.statCol}>
-              <Text style={styles.statLabel}>MÁXIMO</Text>
+              <Text style={styles.statLabel}>{t('history.stats.max')}</Text>
               <Text style={styles.statVal}>{pulStats.max}</Text>
             </View>
           </View>
@@ -457,17 +544,17 @@ export default function HistorialScreen() {
         {registros.length === 0 && (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>📊</Text>
-            <Text style={styles.emptyTitle}>Sin registros aún</Text>
-            <Text style={styles.empty}>Tus mediciones de presión aparecerán aquí. Empieza registrando desde la pestaña Registrar.</Text>
+            <Text style={styles.emptyTitle}>{t('history.noRecordsTitle')}</Text>
+            <Text style={styles.empty}>{t('history.noRecordsText')}</Text>
           </View>
         )}
         {registros.length > 0 && registrosFiltrados.length === 0 && (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>🔍</Text>
-            <Text style={styles.emptyTitle}>Sin resultados</Text>
-            <Text style={styles.empty}>No hay registros que coincidan con los filtros seleccionados.</Text>
-            <TouchableOpacity onPress={() => { setFiltroClase(null); setFiltroDias(null); }} style={styles.clearBtn}>
-              <Text style={styles.clearBtnText}>Limpiar filtros</Text>
+            <Text style={styles.emptyTitle}>{t('history.noResultsTitle')}</Text>
+            <Text style={styles.empty}>{t('history.noResultsText')}</Text>
+            <TouchableOpacity onPress={() => { setFiltroClase(null); setFiltroDias(null); setFiltroRango(null); }} style={styles.clearBtn}>
+              <Text style={styles.clearBtnText}>{t('history.clearFilters')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -503,6 +590,48 @@ export default function HistorialScreen() {
           </View>
         ))}
       </View>
+      <Modal visible={rangoModal} transparent animationType="slide" onRequestClose={() => setRangoModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setRangoModal(false)}>
+          <Pressable style={styles.modalSheet} onPress={() => {}}>
+            <Text style={styles.rangeModalTitle}>{t('history.rangeTitle')}</Text>
+            <View style={styles.rangeRow}>
+              {([
+                { label: t('history.rangeFrom'), temp: tempDesde, setTemp: setTempDesde },
+                { label: t('history.rangeTo'),   temp: tempHasta, setTemp: setTempHasta },
+              ] as const).map(({ label, temp, setTemp }) => (
+                <View key={label} style={styles.rangeCol}>
+                  <Text style={styles.rangeSectionLabel}>{label}</Text>
+                  {(['day', 'month', 'year'] as const).map(field => {
+                    const display = field === 'month'
+                      ? new Date(temp.year, temp.month - 1, 1).toLocaleDateString(i18n.locale === 'en' ? 'en' : 'es', { month: 'short' })
+                      : String(temp[field]);
+                    return (
+                      <View key={field} style={styles.stepRow}>
+                        <TouchableOpacity onPress={() => setTemp(prev => stepDate(prev, field, -1))} style={styles.stepBtn}>
+                          <Text style={styles.stepArrow}>‹</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.stepVal}>{display}</Text>
+                        <TouchableOpacity onPress={() => setTemp(prev => stepDate(prev, field, 1))} style={styles.stepBtn}>
+                          <Text style={styles.stepArrow}>›</Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+            <View style={styles.rangeActions}>
+              <TouchableOpacity onPress={() => setRangoModal(false)} style={styles.rangeCancelBtn}>
+                <Text style={styles.rangeCancelText}>{t('history.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={aplicarRango} style={styles.rangeApplyBtn}>
+                <Text style={styles.rangeApplyText}>{t('history.rangeApply')}</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <Modal visible={!!detalle} transparent animationType="slide" onRequestClose={() => setDetalle(null)}>
         <Pressable style={styles.modalOverlay} onPress={() => setDetalle(null)}>
           <Pressable style={styles.modalSheet} onPress={() => {}}>
@@ -522,23 +651,23 @@ export default function HistorialScreen() {
 
                   {r.nota ? (
                     <View style={styles.modalSection}>
-                      <Text style={styles.modalSectionLabel}>NOTA</Text>
+                      <Text style={styles.modalSectionLabel}>{t('history.note')}</Text>
                       <Text style={styles.modalNota}>{r.nota}</Text>
                     </View>
                   ) : null}
 
                   {c ? (
                     <View style={styles.modalSection}>
-                      <Text style={styles.modalSectionLabel}>CHECK-IN DEL DÍA</Text>
-                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>🌙 Sueño</Text><Text style={styles.modalCheckinVal}>{c.sueno}h</Text></View>
-                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>🧠 Estrés</Text><Text style={styles.modalCheckinVal}>{c.estres}/5</Text></View>
-                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>🏃 Actividad</Text><Text style={styles.modalCheckinVal}>{c.actividad}/5</Text></View>
-                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>💊 Medicamento</Text><Text style={[styles.modalCheckinVal, { color: c.med ? Colors.success : Colors.text.muted }]}>{c.med ? '✓ Tomado' : '✗ No tomado'}</Text></View>
+                      <Text style={styles.modalSectionLabel}>{t('history.checkinTitle')}</Text>
+                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>{t('history.checkinSleep')}</Text><Text style={styles.modalCheckinVal}>{c.sueno}h</Text></View>
+                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>{t('history.checkinStress')}</Text><Text style={styles.modalCheckinVal}>{c.estres}/5</Text></View>
+                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>{t('history.checkinActivity')}</Text><Text style={styles.modalCheckinVal}>{c.actividad}/5</Text></View>
+                      <View style={styles.modalCheckinRow}><Text style={styles.modalCheckinLabel}>{t('history.checkinMed')}</Text><Text style={[styles.modalCheckinVal, { color: c.med ? Colors.success : Colors.text.muted }]}>{c.med ? t('history.medTaken') : t('history.medNotTaken')}</Text></View>
                     </View>
                   ) : null}
 
                   <TouchableOpacity style={styles.modalClose} onPress={() => setDetalle(null)}>
-                    <Text style={styles.modalCloseText}>Cerrar</Text>
+                    <Text style={styles.modalCloseText}>{t('history.close')}</Text>
                   </TouchableOpacity>
                 </>
               );
@@ -610,5 +739,18 @@ function makeStyles(C: ThemeColors) {
     distBarBg:      { flex: 1, height: 8, backgroundColor: C.subtleBg, borderRadius: 4, overflow: 'hidden' },
     distBar:        { height: 8, borderRadius: 4 },
     distPct:        { fontSize: 11, color: C.text.muted, width: 60, textAlign: 'right' },
+    rangeModalTitle:  { fontSize: 16, fontWeight: '700', color: C.text.primary, marginBottom: 20, textAlign: 'center' },
+    rangeRow:         { flexDirection: 'row', gap: 12, marginBottom: 20 },
+    rangeCol:         { flex: 1, gap: 6 },
+    rangeSectionLabel:{ fontSize: 10, fontWeight: '700', color: C.sectionLabel, letterSpacing: 1, marginBottom: 4, textAlign: 'center' },
+    stepRow:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.subtleBg, borderRadius: 10, paddingHorizontal: 4, paddingVertical: 2 },
+    stepBtn:          { paddingHorizontal: 10, paddingVertical: 6 },
+    stepArrow:        { fontSize: 20, color: C.primary, fontWeight: '600', lineHeight: 24 },
+    stepVal:          { fontSize: 14, fontWeight: '600', color: C.text.primary, minWidth: 40, textAlign: 'center' },
+    rangeActions:     { flexDirection: 'row', gap: 10 },
+    rangeCancelBtn:   { flex: 1, backgroundColor: C.subtleBg, borderRadius: 12, padding: 14, alignItems: 'center' },
+    rangeCancelText:  { fontSize: 15, fontWeight: '600', color: C.text.secondary },
+    rangeApplyBtn:    { flex: 1, backgroundColor: C.primary, borderRadius: 12, padding: 14, alignItems: 'center' },
+    rangeApplyText:   { fontSize: 15, fontWeight: '700', color: C.text.onPrimary },
   });
 }

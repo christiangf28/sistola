@@ -21,6 +21,7 @@ function getPill(sys: number, dia: number, C: ThemeColors) {
   if (sys >= 160 || dia >= 100) return { label: 'Alta',        ...C.bp.alta };
   if (sys >= 140 || dia >= 90)  return { label: 'Elevada',     ...C.bp.elevada };
   if (sys >= 130 || dia >= 85)  return { label: 'Normal-alta', ...C.bp.normalAlta };
+  if (sys < 90   || dia < 60)  return { label: 'Baja',        ...C.bp.baja };
   return                               { label: 'Normal',      ...C.bp.normal };
 }
 

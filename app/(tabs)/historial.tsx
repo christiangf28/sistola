@@ -13,7 +13,7 @@ import { useColors } from '@/hooks/use-theme-color';
 type Registro = { sys: number; dia: number; pul?: number; nota?: string | null; fecha: string };
 type Checkin  = { sueno: number; estres: number; actividad: number; med?: boolean };
 
-const CLASES = ['Normal', 'Normal-alta', 'Elevada', 'Alta', 'Crítica'];
+const CLASES = ['Baja', 'Normal', 'Normal-alta', 'Elevada', 'Alta', 'Crítica'];
 const PERIODOS_DIAS: (number | null)[] = [null, 7, 30, 90];
 
 type TempDate = { day: number; month: number; year: number };
@@ -63,6 +63,7 @@ function getPill(sys: number, dia: number, C: ThemeColors) {
   if (sys >= 160 || dia >= 100) return { label: 'Alta',        ...C.bp.alta };
   if (sys >= 140 || dia >= 90)  return { label: 'Elevada',     ...C.bp.elevada };
   if (sys >= 130 || dia >= 85)  return { label: 'Normal-alta', ...C.bp.normalAlta };
+  if (sys < 90   || dia < 60)   return { label: 'Baja',        ...C.bp.baja };
   return                               { label: 'Normal',      ...C.bp.normal };
 }
 
@@ -107,6 +108,7 @@ function pillClass(label: string) {
   if (label === 'Alta')        return 'pill-alta';
   if (label === 'Elevada')     return 'pill-elevada';
   if (label === 'Normal-alta') return 'pill-normal-alta';
+  if (label === 'Baja')        return 'pill-baja';
   return 'pill-normal';
 }
 
@@ -169,6 +171,7 @@ async function buildPDF(registros: Registro[], checkins: Record<string, Checkin>
     .pill-elevada{background:#FFF3CD;color:#856404}
     .pill-alta{background:#FFE0CC;color:#CC4400}
     .pill-critica{background:#FFD0D0;color:#CC0000}
+    .pill-baja{background:#E3F2FD;color:#0D47A1}
     .med{background:#F8F7FF;border-radius:6px;padding:7px 12px;margin-bottom:6px}
     .footer{margin-top:32px;font-size:10px;color:#ccc;text-align:center}
   </style></head><body>
@@ -523,8 +526,8 @@ export default function HistorialScreen() {
             <View style={{ flex: 1, gap: 6 }}>
               {distribucion.map(({ clase, count, pct }) => {
                 const pill = getPill(
-                  clase === 'Crítica' ? 180 : clase === 'Alta' ? 160 : clase === 'Elevada' ? 140 : clase === 'Normal-alta' ? 130 : 110,
-                  clase === 'Crítica' ? 110 : clase === 'Alta' ? 100 : clase === 'Elevada' ? 90 : clase === 'Normal-alta' ? 85 : 70,
+                  clase === 'Crítica' ? 180 : clase === 'Alta' ? 160 : clase === 'Elevada' ? 140 : clase === 'Normal-alta' ? 130 : clase === 'Baja' ? 80 : 110,
+                  clase === 'Crítica' ? 110 : clase === 'Alta' ? 100 : clase === 'Elevada' ? 90  : clase === 'Normal-alta' ? 85  : clase === 'Baja' ? 50 : 70,
                   Colors,
                 );
                 return (

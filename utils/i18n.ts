@@ -323,7 +323,7 @@ const es: typeof en = {
     achievements: 'LOGROS',
     newAchievement: '¡LOGRO DESBLOQUEADO!',
     activity: 'Actividad',
-    streakLabel: 'días\nsequidos',
+    streakLabel: 'días\nseguidos',
     sleepAndStress: 'SUEÑO Y ESTRÉS',
     historySection: 'HISTORIAL',
     seeAll: 'Ver todo →',

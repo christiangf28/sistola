@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { calcRacha } from '@/utils/gamificacion';
+import i18n from '@/utils/i18n';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
@@ -48,6 +49,7 @@ export default function PerfilScreen() {
   const Colors = useColors();
   const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const router = useRouter();
+  const t = i18n.t.bind(i18n);
   const { scheme, toggle } = useAppScheme();
   const [perfil, setPerfil] = useState<Perfil>(PERFIL_RESET);
   const [editando, setEditando]     = useState(false);
@@ -98,7 +100,7 @@ export default function PerfilScreen() {
   const handleCambiarAvatar = () => {
     const opciones: any[] = [
       {
-        text: '📷 Elegir foto',
+        text: t('profile.choosePhoto'),
         onPress: async () => {
           const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== 'granted') return;
@@ -118,13 +120,13 @@ export default function PerfilScreen() {
         },
       },
       {
-        text: '😊 Elegir emoji',
+        text: t('profile.chooseEmoji'),
         onPress: () => setEmojiPickerVisible(true),
       },
     ];
     if (fotoUri || emojiAvatar) {
       opciones.push({
-        text: 'Eliminar',
+        text: t('profile.remove'),
         style: 'destructive' as const,
         onPress: async () => {
           setFotoUri(null);
@@ -134,8 +136,8 @@ export default function PerfilScreen() {
         },
       });
     }
-    opciones.push({ text: 'Cancelar', style: 'cancel' as const });
-    Alert.alert('Foto de perfil', '', opciones);
+    opciones.push({ text: t('profile.cancel'), style: 'cancel' as const });
+    Alert.alert(t('profile.photoTitle'), '', opciones);
   };
 
   const handleSeleccionarEmoji = async (emoji: string) => {
@@ -163,12 +165,12 @@ export default function PerfilScreen() {
 
   const handleExportarBackup = () => {
     Alert.alert(
-      'Exportar copia de seguridad',
-      'Este archivo contiene tus datos de salud (presión arterial, medicamentos, hábitos). Compártelo solo en lugares seguros y de confianza.',
+      t('profile.exportTitle'),
+      t('profile.exportMsg'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('profile.cancel'), style: 'cancel' },
         {
-          text: 'Exportar',
+          text: t('profile.export'),
           onPress: async () => {
             const keys = await AsyncStorage.getAllKeys();
             const pairs = await AsyncStorage.multiGet(keys as string[]);
@@ -177,7 +179,7 @@ export default function PerfilScreen() {
             const json = JSON.stringify({ version: 1, exportado: new Date().toISOString(), data }, null, 2);
             const path = FileSystem.cacheDirectory + 'sistola_backup.json';
             await FileSystem.writeAsStringAsync(path, json, { encoding: 'utf8' });
-            await Sharing.shareAsync(path, { mimeType: 'application/json', dialogTitle: 'Exportar copia de seguridad' });
+            await Sharing.shareAsync(path, { mimeType: 'application/json', dialogTitle: t('profile.exportTitle') });
           },
         },
       ]
@@ -202,12 +204,12 @@ export default function PerfilScreen() {
       if (entries.length === 0) throw new Error('Sin datos reconocidos');
 
       Alert.alert(
-        'Restaurar copia de seguridad',
-        `Se restaurarán ${entries.length} registros. Esto reemplazará todos tus datos actuales. ¿Continuar?`,
+        t('profile.restoreTitle'),
+        t('profile.restoreMsg', { n: entries.length }),
         [
-          { text: 'Cancelar', style: 'cancel' },
+          { text: t('profile.cancel'), style: 'cancel' },
           {
-            text: 'Restaurar', style: 'destructive',
+            text: t('profile.restore'), style: 'destructive',
             onPress: async () => {
               const currentKeys = await AsyncStorage.getAllKeys();
               await AsyncStorage.multiRemove(currentKeys as string[]);
@@ -220,25 +222,25 @@ export default function PerfilScreen() {
               setFotoUri(fotoEntry ? fotoEntry[1] : null);
               const emojiEntry = entries.find(([k]) => k === 'perfil_emoji');
               setEmojiAvatar(emojiEntry ? emojiEntry[1] : null);
-              Alert.alert('✅ Restaurado', 'Tus datos fueron restaurados correctamente.');
+              Alert.alert(t('profile.restoredTitle'), t('profile.restoredMsg'));
             },
           },
         ]
       );
     } catch {
-      Alert.alert('Error', 'El archivo no es un backup válido de Sistola.');
+      Alert.alert('Error', t('profile.backupError'));
     }
   };
 
   const handleBorrarTodo = () => {
     Alert.alert(
-      'Borrar todos los datos',
-      'Se eliminarán todos tus registros, check-ins y configuración. Esta acción no se puede deshacer.\n\nTe recomendamos exportar una copia de seguridad antes.',
+      t('profile.deleteTitle'),
+      t('profile.deleteMsg'),
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Exportar primero', onPress: handleExportarBackup },
+        { text: t('profile.cancel'), style: 'cancel' },
+        { text: t('profile.exportFirst'), onPress: handleExportarBackup },
         {
-          text: 'Borrar todo', style: 'destructive',
+          text: t('profile.deleteConfirm'), style: 'destructive',
           onPress: async () => {
             const keys = await AsyncStorage.getAllKeys();
             await AsyncStorage.multiRemove(keys as string[]);
@@ -277,25 +279,25 @@ export default function PerfilScreen() {
             </View>
           </TouchableOpacity>
           <View style={styles.heroInfo}>
-            <Text style={styles.heroNombre}>{perfil.nombre || 'Sin nombre'}</Text>
-            {perfil.edad ? <Text style={styles.heroEdad}>{perfil.edad} años</Text> : null}
+            <Text style={styles.heroNombre}>{perfil.nombre || t('profile.noName')}</Text>
+            {perfil.edad ? <Text style={styles.heroEdad}>{perfil.edad} {t('profile.ageUnit')}</Text> : null}
           </View>
         </View>
         <View style={styles.statsStrip}>
           <View style={styles.statItem}>
             <Text style={styles.statNum}>{totalRegistros}</Text>
-            <Text style={styles.statLabel}>registros</Text>
+            <Text style={styles.statLabel}>{t('profile.statsRecords')}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statNum}>{racha}</Text>
-            <Text style={styles.statLabel}>días racha</Text>
+            <Text style={styles.statLabel}>{t('profile.statsStreak')}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statNum}>{adherencia !== null ? `${adherencia}%` : '—'}</Text>
             <Text style={[styles.statLabel, adherencia !== null && { color: adherencia >= 80 ? '#86efac' : adherencia >= 50 ? '#fcd34d' : '#fca5a5' }]}>
-              adherencia
+              {t('profile.statsAdherence')}
             </Text>
           </View>
         </View>
@@ -306,15 +308,15 @@ export default function PerfilScreen() {
         {!editando ? (
           <>
             <View style={styles.card}>
-              <Text style={styles.sectionLabel}>DATOS PERSONALES</Text>
-              <InfoRow label="Nombre" value={perfil.nombre || '—'} styles={styles} />
-              <InfoRow label="Edad" value={perfil.edad ? `${perfil.edad} años` : '—'} styles={styles} last />
+              <Text style={styles.sectionLabel}>{t('profile.personal')}</Text>
+              <InfoRow label={t('profile.name')} value={perfil.nombre || '—'} styles={styles} />
+              <InfoRow label={t('profile.age')} value={perfil.edad ? `${perfil.edad} ${t('profile.ageUnit')}` : '—'} styles={styles} last />
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.sectionLabel}>MEDICACIÓN</Text>
+              <Text style={styles.sectionLabel}>{t('profile.medication')}</Text>
               {perfil.medicamentos.length === 0 ? (
-                <Text style={styles.emptyMed}>Sin medicamentos registrados</Text>
+                <Text style={styles.emptyMed}>{t('profile.noMedication')}</Text>
               ) : (
                 perfil.medicamentos.map((m, i) => (
                   <InfoRow
@@ -328,7 +330,7 @@ export default function PerfilScreen() {
               )}
               {adherencia !== null && (
                 <View style={[styles.infoRow, { borderTopWidth: perfil.medicamentos.length ? 0.5 : 0, borderTopColor: Colors.divider }]}>
-                  <Text style={styles.infoLabel}>Adherencia (30 días)</Text>
+                  <Text style={styles.infoLabel}>{t('profile.adherence')}</Text>
                   <Text style={[styles.infoValue, { color: adherencia >= 80 ? Colors.success : adherencia >= 50 ? Colors.warning : Colors.accent }]}>
                     {adherencia}%
                   </Text>
@@ -337,18 +339,18 @@ export default function PerfilScreen() {
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.sectionLabel}>META DE PRESIÓN</Text>
+              <Text style={styles.sectionLabel}>{t('profile.pressureGoal')}</Text>
               {meta ? (
-                <InfoRow label="Objetivo" value={`${meta.sys}/${meta.dia} mmHg`} styles={styles} last />
+                <InfoRow label={t('profile.goalObjective')} value={`${meta.sys}/${meta.dia} mmHg`} styles={styles} last />
               ) : (
-                <Text style={styles.emptyMed}>Sin meta configurada — edita tu perfil para establecerla</Text>
+                <Text style={styles.emptyMed}>{t('profile.noGoal')}</Text>
               )}
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.sectionLabel}>APARIENCIA</Text>
+              <Text style={styles.sectionLabel}>{t('profile.appearance')}</Text>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Modo oscuro</Text>
+                <Text style={styles.infoLabel}>{t('profile.darkMode')}</Text>
                 <Switch
                   value={scheme === 'dark'}
                   onValueChange={toggle}
@@ -359,26 +361,26 @@ export default function PerfilScreen() {
             </View>
 
             <TouchableOpacity style={styles.editBtn} onPress={() => setEditando(true)}>
-              <Text style={styles.editBtnText}>Editar perfil</Text>
+              <Text style={styles.editBtnText}>{t('profile.editProfile')}</Text>
             </TouchableOpacity>
 
             <View style={styles.card}>
-              <Text style={styles.sectionLabel}>COPIA DE SEGURIDAD</Text>
+              <Text style={styles.sectionLabel}>{t('profile.backup')}</Text>
               <TouchableOpacity style={[styles.infoRow, { paddingVertical: 12 }]} onPress={handleExportarBackup}>
-                <Text style={styles.infoLabel}>Exportar backup</Text>
+                <Text style={styles.infoLabel}>{t('profile.exportBackup')}</Text>
                 <Text style={[styles.infoValue, { color: Colors.primary }]}>JSON →</Text>
               </TouchableOpacity>
               <View style={{ borderTopWidth: 0.5, borderTopColor: Colors.divider }}>
                 <TouchableOpacity style={[styles.infoRow, { paddingVertical: 12 }]} onPress={handleImportarBackup}>
-                  <Text style={styles.infoLabel}>Importar backup</Text>
+                  <Text style={styles.infoLabel}>{t('profile.importBackup')}</Text>
                   <Text style={[styles.infoValue, { color: Colors.primary }]}>← JSON</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.sectionLabel}>TENSIÓMETROS RECOMENDADOS</Text>
-              <Text style={styles.afiliadoSub}>Para mediciones precisas y confiables · Disponible en MercadoLibre Chile</Text>
+              <Text style={styles.sectionLabel}>{t('profile.monitors')}</Text>
+              <Text style={styles.afiliadoSub}>{t('profile.monitorsDesc')}</Text>
               {[
                 { nombre: 'Omron RS2',       desc: 'Muñeca · Compacto y preciso',           emoji: '⌚', url: 'https://www.mercadolibre.cl/social/guch5652947?matt_word=guch5652947&matt_tool=91729548&forceInApp=true&ref=BF22XIkz%2FpIjgdvZSkPUabfTd9GDkFxzjhxlPSUet3E9GETpS1xT9AhkYu3SeuhgxF2bOKYJNMfxIj0q0U835M76G2Fmt53%2BiKnjzv0%2FnHFa8pXRaHyMcWJTQh%2FmIFrzbJRJtuTMwlXFXbXk%2FmBLwod4jYuJyZ5w7JMOdKt0GQ4XjTuw%2F6gh1INedkxyHBgo%2F6sShyXu8hlh7vEHUA%3D%3D' },
                 { nombre: 'Omron X2 Basic',  desc: 'Brazo · Básico · Validado clínicamente', emoji: '🩺', url: 'https://www.mercadolibre.cl/social/guch5652947?matt_word=guch5652947&matt_tool=91729548&forceInApp=true&ref=BA6myj6RL%2BSj2eqRlEFU3RBUHCkCA32DrKBJ1pOhFW8a9RFQa0dEtDmrVy0OSCraGkUEFUUgT4uplqcltJr8LdE6XLwCkIFs8VDZ2la5IpkCtic1cNIUrXPp7Jv8HL9FbLlxMIN2Ibc5GCuGmAN%2BIty2KZr%2FOvjLxPhKBupEJ1gkoDS%2BPocSZpYv24N7JqjBnfS6yd0%3D' },
@@ -397,27 +399,27 @@ export default function PerfilScreen() {
                     <Text style={styles.afiliadoNombre}>{item.nombre}</Text>
                     <Text style={styles.afiliadoDesc}>{item.desc}</Text>
                   </View>
-                  <Text style={styles.afiliadoBtn}>Ver →</Text>
+                  <Text style={styles.afiliadoBtn}>{t('profile.seeMore')}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <TouchableOpacity style={styles.deleteBtn} onPress={handleBorrarTodo}>
-              <Text style={styles.deleteBtnText}>Borrar todos los datos</Text>
+              <Text style={styles.deleteBtnText}>{t('profile.deleteAll')}</Text>
             </TouchableOpacity>
           </>
         ) : (
           <>
             <View style={styles.card}>
-              <Text style={styles.sectionLabel}>DATOS PERSONALES</Text>
-              <EditRow label="Nombre" value={form.nombre} onChangeText={v => setForm(p => ({ ...p, nombre: v }))} styles={styles} Colors={Colors} />
-              <EditRow label="Edad" value={form.edad} onChangeText={v => setForm(p => ({ ...p, edad: v }))} keyboard="numeric" last styles={styles} Colors={Colors} />
+              <Text style={styles.sectionLabel}>{t('profile.personal')}</Text>
+              <EditRow label={t('profile.name')} value={form.nombre} onChangeText={v => setForm(p => ({ ...p, nombre: v }))} styles={styles} Colors={Colors} />
+              <EditRow label={t('profile.age')} value={form.edad} onChangeText={v => setForm(p => ({ ...p, edad: v }))} keyboard="numeric" last styles={styles} Colors={Colors} />
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.sectionLabel}>MEDICACIÓN</Text>
+              <Text style={styles.sectionLabel}>{t('profile.medication')}</Text>
               {form.medicamentos.length === 0 ? (
-                <Text style={styles.emptyMed}>Ninguno seleccionado</Text>
+                <Text style={styles.emptyMed}>{t('profile.noSelected')}</Text>
               ) : (
                 form.medicamentos.map((m, i) => (
                   <InfoRow
@@ -431,31 +433,29 @@ export default function PerfilScreen() {
               )}
               <TouchableOpacity style={styles.editMedBtn} onPress={() => setPickerVisible(true)}>
                 <Text style={styles.editMedBtnText}>
-                  {form.medicamentos.length ? 'Editar selección' : 'Seleccionar medicamentos'}
+                  {form.medicamentos.length ? t('profile.editSelection') : t('profile.selectMedication')}
                 </Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.sectionLabel}>META DE PRESIÓN</Text>
-              <EditRow label="Sistólica (SYS)" value={editMeta.sys} onChangeText={v => setEditMeta(p => ({ ...p, sys: v }))} keyboard="numeric" styles={styles} Colors={Colors} />
-              <EditRow label="Diastólica (DIA)" value={editMeta.dia} onChangeText={v => setEditMeta(p => ({ ...p, dia: v }))} keyboard="numeric" last styles={styles} Colors={Colors} />
+              <Text style={styles.sectionLabel}>{t('profile.pressureGoal')}</Text>
+              <EditRow label={t('profile.systolicSys')} value={editMeta.sys} onChangeText={v => setEditMeta(p => ({ ...p, sys: v }))} keyboard="numeric" styles={styles} Colors={Colors} />
+              <EditRow label={t('profile.diastolicDia')} value={editMeta.dia} onChangeText={v => setEditMeta(p => ({ ...p, dia: v }))} keyboard="numeric" last styles={styles} Colors={Colors} />
             </View>
 
             <TouchableOpacity style={styles.saveBtn} onPress={guardar}>
-              <Text style={styles.saveBtnText}>Guardar cambios</Text>
+              <Text style={styles.saveBtnText}>{t('profile.saveChanges')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={cancelar}>
-              <Text style={styles.cancelBtnText}>Cancelar</Text>
+              <Text style={styles.cancelBtnText}>{t('profile.cancel')}</Text>
             </TouchableOpacity>
           </>
         )}
 
-        <Text style={styles.disclaimer}>
-          Sistola v1.0.0{'\n'}Herramienta de registro personal · No reemplaza el diagnóstico médico
-        </Text>
+        <Text style={styles.disclaimer}>{t('profile.disclaimer')}</Text>
         <TouchableOpacity onPress={() => Linking.openURL('https://gist.github.com/christiangf28/2306a8622350312a58205c122bca7154#file-gistfile1-txt')}>
-          <Text style={styles.privacyLink}>Política de privacidad</Text>
+          <Text style={styles.privacyLink}>{t('profile.privacyPolicy')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -469,7 +469,7 @@ export default function PerfilScreen() {
       <Modal visible={emojiPickerVisible} transparent animationType="fade" onRequestClose={() => setEmojiPickerVisible(false)}>
         <TouchableOpacity style={styles.emojiOverlay} activeOpacity={1} onPress={() => setEmojiPickerVisible(false)}>
           <View style={styles.emojiModal}>
-            <Text style={styles.emojiModalTitle}>Elige tu emoji</Text>
+            <Text style={styles.emojiModalTitle}>{t('profile.emojiTitle')}</Text>
             <View style={styles.emojiGrid}>
               {EMOJIS_AVATAR.map(e => (
                 <TouchableOpacity key={e} style={styles.emojiBtn} onPress={() => handleSeleccionarEmoji(e)}>

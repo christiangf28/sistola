@@ -1,3 +1,5 @@
+import i18n from '@/utils/i18n';
+
 type Registro = { sys: number; dia: number; fecha: string };
 type Checkin = { sueno: number; estres: number; actividad: number; fecha: string };
 
@@ -11,18 +13,13 @@ export function getInsight(
   registros: Registro[],
   checkinsPorDia: Record<string, Checkin>
 ): Insight | null {
+  const t = i18n.t.bind(i18n);
   if (registros.length < 3) return null;
 
   if (registros.length >= 6) {
     const diff = promSys(registros.slice(0, 3)) - promSys(registros.slice(3, 6));
-    if (diff >= 8) return {
-      icono: '📈',
-      texto: 'Tu presión sistólica subió en los últimos registros. Considera revisar tu medicación y descansar más.',
-    };
-    if (diff <= -8) return {
-      icono: '📉',
-      texto: 'Tu presión bajó los últimos registros. ¡Buen trabajo, sigue con tus hábitos!',
-    };
+    if (diff >= 8) return { icono: '📈', texto: t('home.insights.risingTrend') };
+    if (diff <= -8) return { icono: '📉', texto: t('home.insights.fallingTrend') };
   }
 
   const conCheckin = registros.filter(r => checkinsPorDia[r.fecha.split('T')[0]]);
@@ -31,10 +28,7 @@ export function getInsight(
     const buenSueno = conCheckin.filter(r => checkinsPorDia[r.fecha.split('T')[0]].sueno >= 7);
     if (malSueno.length >= 2 && buenSueno.length >= 2) {
       const diff = promSys(malSueno) - promSys(buenSueno);
-      if (diff >= 8) return {
-        icono: '😴',
-        texto: 'Tu presión tiende a ser más alta cuando duermes mal. El descanso tiene un impacto real.',
-      };
+      if (diff >= 8) return { icono: '😴', texto: t('home.insights.sleepImpact') };
     }
   }
 
@@ -45,10 +39,7 @@ export function getInsight(
     racha++;
     d.setDate(d.getDate() - 1);
   }
-  if (racha >= 3) return {
-    icono: '🔥',
-    texto: `¡Llevas ${racha} días registrando seguidos! La constancia es la clave del control.`,
-  };
+  if (racha >= 3) return { icono: '🔥', texto: t('home.insights.streak', { n: racha }) };
 
   return null;
 }

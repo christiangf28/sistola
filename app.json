@@ -59,7 +59,8 @@
           "color": "#7F77DD",
           "sounds": []
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

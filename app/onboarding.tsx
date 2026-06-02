@@ -6,6 +6,7 @@ import { MedicamentoPicker } from '@/components/medicamento-picker';
 import { ThemeColors } from '@/constants/theme';
 import { useColors } from '@/hooks/use-theme-color';
 import { Medicacion } from '@/utils/medicamentos';
+import i18n from '@/utils/i18n';
 
 type Datos = { nombre: string; edad: string; medicamentos: Medicacion[] };
 
@@ -23,10 +24,11 @@ export default function Onboarding() {
     });
   }, []);
 
+  const t = i18n.t.bind(i18n);
   const steps = [
-    { titulo: '¡Hola! Soy Sistola 👋', subtitulo: 'Tu acompañante de salud. En 3 pasos te configuro para empezar.', campo: 'nombre', label: '¿Cómo te llamas?', placeholder: 'Ej: Carlos', keyboard: 'default' as const },
-    { titulo: 'Cuéntame un poco 🙂', subtitulo: 'Para darte recomendaciones correctas necesito tu edad.', campo: 'edad', label: '¿Cuántos años tienes?', placeholder: 'Ej: 52', keyboard: 'numeric' as const },
-    { titulo: 'Tu medicación 💊', subtitulo: 'Selecciona los medicamentos que tomas para la presión. Puedes saltarlo si no tomas ninguno.', campo: 'medicamentos', label: '' },
+    { titulo: t('onboarding.step1Title'), subtitulo: t('onboarding.step1Sub'), campo: 'nombre', label: t('onboarding.step1Label'), placeholder: t('onboarding.step1Placeholder'), keyboard: 'default' as const },
+    { titulo: t('onboarding.step2Title'), subtitulo: t('onboarding.step2Sub'), campo: 'edad', label: t('onboarding.step2Label'), placeholder: t('onboarding.step2Placeholder'), keyboard: 'numeric' as const },
+    { titulo: t('onboarding.step3Title'), subtitulo: t('onboarding.step3Sub'), campo: 'medicamentos', label: '' },
   ];
 
   const current = steps[step];
@@ -63,7 +65,7 @@ export default function Onboarding() {
           <>
             <TouchableOpacity style={styles.pickerBtn} onPress={() => setPickerVisible(true)}>
               <Text style={styles.pickerBtnText}>
-                {datos.medicamentos.length ? 'Editar selección' : '📋 Elegir de la lista'}
+                {datos.medicamentos.length ? t('onboarding.editSelection') : t('onboarding.chooseFromList')}
               </Text>
             </TouchableOpacity>
 
@@ -101,17 +103,15 @@ export default function Onboarding() {
         onPress={siguiente}
         disabled={!canNext}
       >
-        <Text style={styles.ctaText}>{step < steps.length - 1 ? 'Siguiente →' : '¡Empezar con Sistola!'}</Text>
+        <Text style={styles.ctaText}>{step < steps.length - 1 ? t('onboarding.next') : t('onboarding.getStarted')}</Text>
       </TouchableOpacity>
 
       {esMedicamentos && (
         <>
           <TouchableOpacity onPress={siguiente} style={styles.skip}>
-            <Text style={styles.skipText}>Saltar por ahora</Text>
+            <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
           </TouchableOpacity>
-          <Text style={styles.disclaimer}>
-            Sistola es una herramienta de registro personal. No reemplaza la consulta médica ni el diagnóstico profesional.
-          </Text>
+          <Text style={styles.disclaimer}>{t('onboarding.disclaimer')}</Text>
         </>
       )}
 

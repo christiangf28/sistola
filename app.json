@@ -20,9 +20,9 @@
     "android": {
       "package": "com.sistola.app",
       "adaptiveIcon": {
-        "backgroundColor": "#7F77DD",
+        "backgroundColor": "#6D66D6",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "monochromeImage": "./assets/images/android-icon-foreground.png"
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
       "allowBackup": false
@@ -39,9 +39,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#7F77DD",
+          "backgroundColor": "#6D66D6",
           "dark": {
-            "backgroundColor": "#0E0D1A"
+            "backgroundColor": "#6D66D6"
           }
         }
       ],
@@ -55,8 +55,8 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
-          "color": "#7F77DD",
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#6D66D6",
           "sounds": []
         }
       ],

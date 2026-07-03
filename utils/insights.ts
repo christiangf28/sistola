@@ -1,4 +1,5 @@
 import i18n from '@/utils/i18n';
+import { localDateStr } from '@/utils/fechas';
 
 type Registro = { sys: number; dia: number; fecha: string };
 type Checkin = { sueno: number; estres: number; actividad: number; fecha: string };
@@ -22,20 +23,20 @@ export function getInsight(
     if (diff <= -8) return { icono: '📉', texto: t('home.insights.fallingTrend') };
   }
 
-  const conCheckin = registros.filter(r => checkinsPorDia[r.fecha.split('T')[0]]);
+  const conCheckin = registros.filter(r => checkinsPorDia[localDateStr(r.fecha)]);
   if (conCheckin.length >= 4) {
-    const malSueno  = conCheckin.filter(r => checkinsPorDia[r.fecha.split('T')[0]].sueno <= 5);
-    const buenSueno = conCheckin.filter(r => checkinsPorDia[r.fecha.split('T')[0]].sueno >= 7);
+    const malSueno  = conCheckin.filter(r => checkinsPorDia[localDateStr(r.fecha)].sueno <= 5);
+    const buenSueno = conCheckin.filter(r => checkinsPorDia[localDateStr(r.fecha)].sueno >= 7);
     if (malSueno.length >= 2 && buenSueno.length >= 2) {
       const diff = promSys(malSueno) - promSys(buenSueno);
       if (diff >= 8) return { icono: '😴', texto: t('home.insights.sleepImpact') };
     }
   }
 
-  const dias = new Set(registros.map(r => r.fecha.split('T')[0]));
+  const dias = new Set(registros.map(r => localDateStr(r.fecha)));
   let racha = 0;
   const d = new Date();
-  while (dias.has(d.toISOString().split('T')[0])) {
+  while (dias.has(localDateStr(d))) {
     racha++;
     d.setDate(d.getDate() - 1);
   }

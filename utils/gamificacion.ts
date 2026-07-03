@@ -1,3 +1,6 @@
+import i18n from '@/utils/i18n';
+import { localDateStr } from '@/utils/fechas';
+
 type Registro = { sys: number; dia: number; fecha: string };
 type Checkin = { sueno: number; estres: number; actividad: number; med?: boolean; fecha: string };
 
@@ -11,11 +14,11 @@ export type Logro = {
 };
 
 export const NIVELES = [
-  { min: 0,    label: 'Explorador', color: '#9E9E9E' },
-  { min: 100,  label: 'Guardián',   color: '#4CAF50' },
-  { min: 350,  label: 'Protector',  color: '#2196F3' },
-  { min: 900,  label: 'Maestro',    color: '#9C27B0' },
-  { min: 1500, label: 'Leyenda',    color: '#FF9800' },
+  { min: 0,    label: i18n.t('levels.Explorador'), color: '#9E9E9E' },
+  { min: 100,  label: i18n.t('levels.Guardián'),   color: '#4CAF50' },
+  { min: 350,  label: i18n.t('levels.Protector'),  color: '#2196F3' },
+  { min: 900,  label: i18n.t('levels.Maestro'),    color: '#9C27B0' },
+  { min: 1500, label: i18n.t('levels.Leyenda'),    color: '#FF9800' },
 ];
 
 export function getNivel(aura: number) {
@@ -28,10 +31,10 @@ export function getSiguienteNivel(aura: number) {
 
 export function calcRacha(registros: Registro[]): number {
   if (!registros.length) return 0;
-  const dias = new Set(registros.map(r => r.fecha.split('T')[0]));
+  const dias = new Set(registros.map(r => localDateStr(r.fecha)));
   let n = 0;
   const d = new Date();
-  while (dias.has(d.toISOString().split('T')[0])) {
+  while (dias.has(localDateStr(d))) {
     n++;
     d.setDate(d.getDate() - 1);
   }
@@ -45,10 +48,10 @@ export function calcAura(
   checkinsPorDia: Record<string, Checkin>,
   racha: number
 ): number {
-  const diasConRegistro = new Set(registros.map(r => r.fecha.split('T')[0])).size;
+  const diasConRegistro = new Set(registros.map(r => localDateStr(r.fecha))).size;
   const diasConCheckin = Object.keys(checkinsPorDia).length;
   const diasConNormal = new Set(
-    registros.filter(r => r.sys < 130 && r.dia < 85).map(r => r.fecha.split('T')[0])
+    registros.filter(r => r.sys < 130 && r.dia < 85).map(r => localDateStr(r.fecha))
   ).size;
 
   const base = diasConRegistro * 10 + diasConCheckin * 15 + diasConNormal * 5;
@@ -70,73 +73,74 @@ export function getLogros(
   registros: Registro[],
   checkinsPorDia: Record<string, Checkin>
 ): Logro[] {
-  const diasConRegistro = new Set(registros.map(r => r.fecha.split('T')[0])).size;
+  const diasConRegistro = new Set(registros.map(r => localDateStr(r.fecha))).size;
   const racha = calcRacha(registros);
   const totalCheckins = Object.keys(checkinsPorDia).length;
   const diasConMed = Object.values(checkinsPorDia).filter(c => c.med).length;
   const diasConBuenSueno = Object.values(checkinsPorDia).filter(c => c.sueno >= 7).length;
   const normalesConsec = maxNormalesConsecutivas(registros);
 
+  const t = i18n.t.bind(i18n);
   return [
     {
       id: 'primera',
-      titulo: 'Primera medición',
-      descripcion: 'Registraste tu primera presión',
+      titulo: t('logros.primera.titulo'),
+      descripcion: t('logros.primera.descripcion'),
       icono: '🎯',
       desbloqueado: registros.length >= 1,
     },
     {
       id: 'semana',
-      titulo: 'Una semana',
-      descripcion: '7 días seguidos registrando',
+      titulo: t('logros.semana.titulo'),
+      descripcion: t('logros.semana.descripcion'),
       icono: '🔥',
       desbloqueado: racha >= 7,
       progreso: { actual: Math.min(racha, 7), total: 7 },
     },
     {
       id: 'mes',
-      titulo: 'Mes completo',
-      descripcion: '30 días con al menos un registro',
+      titulo: t('logros.mes.titulo'),
+      descripcion: t('logros.mes.descripcion'),
       icono: '📅',
       desbloqueado: diasConRegistro >= 30,
       progreso: { actual: Math.min(diasConRegistro, 30), total: 30 },
     },
     {
       id: 'controlada',
-      titulo: 'Presión controlada',
-      descripcion: '7 lecturas normales consecutivas',
+      titulo: t('logros.controlada.titulo'),
+      descripcion: t('logros.controlada.descripcion'),
       icono: '💚',
       desbloqueado: normalesConsec >= 7,
       progreso: { actual: Math.min(normalesConsec, 7), total: 7 },
     },
     {
       id: 'descanso',
-      titulo: 'Buen descanso',
-      descripcion: '10 noches con ≥7h de sueño',
+      titulo: t('logros.descanso.titulo'),
+      descripcion: t('logros.descanso.descripcion'),
       icono: '😴',
       desbloqueado: diasConBuenSueno >= 10,
       progreso: { actual: Math.min(diasConBuenSueno, 10), total: 10 },
     },
     {
       id: 'habito',
-      titulo: 'Hábito formado',
-      descripcion: '30 check-ins completados',
+      titulo: t('logros.habito.titulo'),
+      descripcion: t('logros.habito.descripcion'),
       icono: '✅',
       desbloqueado: totalCheckins >= 30,
       progreso: { actual: Math.min(totalCheckins, 30), total: 30 },
     },
     {
       id: 'medicado',
-      titulo: 'Adherencia total',
-      descripcion: '14 días con medicamento tomado',
+      titulo: t('logros.medicado.titulo'),
+      descripcion: t('logros.medicado.descripcion'),
       icono: '💊',
       desbloqueado: diasConMed >= 14,
       progreso: { actual: Math.min(diasConMed, 14), total: 14 },
     },
     {
       id: 'imparable',
-      titulo: 'Imparable',
-      descripcion: '30 días seguidos registrando',
+      titulo: t('logros.imparable.titulo'),
+      descripcion: t('logros.imparable.descripcion'),
       icono: '⚡',
       desbloqueado: racha >= 30,
       progreso: { actual: Math.min(racha, 30), total: 30 },

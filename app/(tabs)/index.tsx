@@ -11,24 +11,26 @@ import { ThemeColors } from '@/constants/theme';
 import { useColors } from '@/hooks/use-theme-color';
 import { cancelNotifications, getSavedTime, NotifTime, requestPermissions, scheduleDaily } from '@/utils/notifications';
 import { getInsight } from '@/utils/insights';
+import { localDateStr } from '@/utils/fechas';
 import { calcAura, calcRacha, getNivel, getSiguienteNivel, getLogros } from '@/utils/gamificacion';
 
 type Registro = { sys: number; dia: number; pul?: number; nota?: string | null; fecha: string };
 type Checkin = { sueno: number; estres: number; actividad: number; med?: boolean; fecha: string };
 
 function getPill(sys: number, dia: number, C: ThemeColors) {
-  if (sys >= 180 || dia >= 110) return { label: 'Crítica',     ...C.bp.critica };
-  if (sys >= 160 || dia >= 100) return { label: 'Alta',        ...C.bp.alta };
-  if (sys >= 140 || dia >= 90)  return { label: 'Elevada',     ...C.bp.elevada };
-  if (sys >= 130 || dia >= 85)  return { label: 'Normal-alta', ...C.bp.normalAlta };
-  if (sys < 90   || dia < 60)  return { label: 'Baja',        ...C.bp.baja };
-  return                               { label: 'Normal',      ...C.bp.normal };
+  const t = i18n.t.bind(i18n);
+  if (sys >= 180 || dia >= 110) return { label: t('bp.Crítica'),     ...C.bp.critica };
+  if (sys >= 160 || dia >= 100) return { label: t('bp.Alta'),        ...C.bp.alta };
+  if (sys >= 140 || dia >= 90)  return { label: t('bp.Elevada'),     ...C.bp.elevada };
+  if (sys >= 130 || dia >= 85)  return { label: t('bp.Normal-alta'), ...C.bp.normalAlta };
+  if (sys < 90   || dia < 60)  return { label: t('bp.Baja'),        ...C.bp.baja };
+  return                               { label: t('bp.Normal'),      ...C.bp.normal };
 }
 
 function formatFecha(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' }) +
-    ' · ' + d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString(i18n.locale, { weekday: 'short', day: 'numeric', month: 'short' }) +
+    ' · ' + d.toLocaleTimeString(i18n.locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatNotifTime(t: NotifTime) {
@@ -36,17 +38,16 @@ function formatNotifTime(t: NotifTime) {
 }
 
 function hoyStr() {
-  return new Date().toISOString().split('T')[0];
+  return localDateStr();
 }
 
 function fechaHoy() {
-  const s = new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
+  const s = new Date().toLocaleDateString(i18n.locale, { weekday: 'long', day: 'numeric', month: 'long' });
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-const DIA_LABEL = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
-
 function getUltimos7() {
+  const DIA_LABEL = i18n.t('home.weekDays') as unknown as string[];
   const hoy = new Date();
   const dow = hoy.getDay(); // 0=Dom, 1=Lun...
   const diffLunes = dow === 0 ? -6 : 1 - dow;
@@ -55,7 +56,7 @@ function getUltimos7() {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(lunes);
     d.setDate(lunes.getDate() + i);
-    return { label: DIA_LABEL[d.getDay()], fecha: d.toISOString().split('T')[0] };
+    return { label: DIA_LABEL[d.getDay()], fecha: localDateStr(d) };
   });
 }
 
@@ -158,7 +159,7 @@ export default function HomeScreen() {
       const last30Keys = Array.from({ length: 30 }, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        return 'checkin_' + d.toISOString().split('T')[0];
+        return 'checkin_' + localDateStr(d);
       });
       const pairs = await AsyncStorage.multiGet(last30Keys);
       const map: Record<string, Checkin> = {};
@@ -186,7 +187,7 @@ export default function HomeScreen() {
         }, 700);
       }
     })();
-  }, []));
+  }, [logroToastAnim]));
 
   const setVal = (key: string, val: number) => {
     setCheckinHoy(prev => ({ ...prev, [key]: (prev as any)[key] === val ? 0 : val }));
@@ -199,7 +200,7 @@ export default function HomeScreen() {
       setCheckin(data);
       setGuardado(true);
     } catch {
-      Alert.alert('Error', 'No se pudo guardar el check-in.');
+      Alert.alert('Error', t('home.errorCheckin'));
     }
   };
 
@@ -223,7 +224,7 @@ export default function HomeScreen() {
   };
 
   const handleVerDetalle = async (r: Registro) => {
-    const raw = await AsyncStorage.getItem('checkin_' + r.fecha.slice(0, 10));
+    const raw = await AsyncStorage.getItem('checkin_' + localDateStr(r.fecha));
     setDetalle({ registro: r, checkin: raw ? JSON.parse(raw) : null });
   };
 
@@ -239,18 +240,18 @@ export default function HomeScreen() {
   const handleCompartirGrafico = async () => {
     try {
       const uri = await captureRef(chartRef, { format: 'png', quality: 1 });
-      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Compartir gráfico' });
+      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: t('home.shareChart') });
     } catch {
-      Alert.alert('Error', 'No se pudo compartir el gráfico.');
+      Alert.alert('Error', t('home.errorChart'));
     }
   };
 
   const handleCompartirTarjeta = async () => {
     try {
       const uri = await captureRef(tarjetaRef, { format: 'png', quality: 1, result: 'tmpfile' });
-      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Compartir tarjeta' });
+      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: t('home.shareCard') });
     } catch {
-      Alert.alert('Error', 'No se pudo compartir la tarjeta.');
+      Alert.alert('Error', t('home.errorCard'));
     }
   };
 
@@ -266,9 +267,9 @@ export default function HomeScreen() {
   const siguienteNivel = getSiguienteNivel(aura);
   const logros = getLogros(registros, checkinsHistorial);
   const comparativa = calcComparativa(registros);
-  const diasConRegistro = new Set(registros.map(r => r.fecha.split('T')[0]));
+  const diasConRegistro = new Set(registros.map(r => localDateStr(r.fecha)));
   const ultimos7 = getUltimos7();
-  const registrosHoy = registros.filter(r => r.fecha.split('T')[0] === hoyStr());
+  const registrosHoy = registros.filter(r => localDateStr(r.fecha) === hoyStr());
   const promedioHoy = registrosHoy.length > 1
     ? { sys: Math.round(registrosHoy.reduce((s, r) => s + r.sys, 0) / registrosHoy.length), dia: Math.round(registrosHoy.reduce((s, r) => s + r.dia, 0) / registrosHoy.length) }
     : registrosHoy[0] ?? null;
@@ -401,7 +402,7 @@ export default function HomeScreen() {
           })}
 
           <View style={[styles.ciRow, { marginBottom: 0 }]}>
-            <Text style={styles.ciLabel}>💊 Medicamento</Text>
+            <Text style={styles.ciLabel}>{t('home.medicationLabel')}</Text>
             <TouchableOpacity
               disabled={guardado}
               onPress={() => setCheckinHoy(p => ({ ...p, med: !p.med }))}

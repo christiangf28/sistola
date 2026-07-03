@@ -13,6 +13,7 @@ import { ThemeColors } from '@/constants/theme';
 import { useAppScheme } from '@/contexts/theme';
 import { useColors } from '@/hooks/use-theme-color';
 import { Medicacion } from '@/utils/medicamentos';
+import { localDateStr } from '@/utils/fechas';
 
 type Perfil = { nombre: string; edad: string; medicamentos: Medicacion[] };
 type Meta = { sys: number; dia: number };
@@ -88,7 +89,7 @@ export default function PerfilScreen() {
       const last30Keys = Array.from({ length: 30 }, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        return 'checkin_' + d.toISOString().split('T')[0];
+        return 'checkin_' + localDateStr(d);
       });
       const pairs = await AsyncStorage.multiGet(last30Keys);
       const conDatos = pairs.filter(([, v]) => v !== null);

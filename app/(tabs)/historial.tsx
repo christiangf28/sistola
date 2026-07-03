@@ -9,6 +9,10 @@ import { Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, Touchable
 import { Swipeable } from 'react-native-gesture-handler';
 import { ThemeColors } from '@/constants/theme';
 import { useColors } from '@/hooks/use-theme-color';
+import { localDateStr } from '@/utils/fechas';
+
+// Traduce la clasificación interna (siempre en español) para mostrarla
+const tBp = (label: string) => i18n.t('bp.' + label);
 
 type Registro = { sys: number; dia: number; pul?: number; nota?: string | null; fecha: string };
 type Checkin  = { sueno: number; estres: number; actividad: number; med?: boolean };
@@ -69,14 +73,14 @@ function getPill(sys: number, dia: number, C: ThemeColors) {
 
 function formatFecha(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) +
-    ' · ' + d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString(i18n.locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) +
+    ' · ' + d.toLocaleTimeString(i18n.locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatFechaCorta(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' }) +
-    ' · ' + d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString(i18n.locale, { weekday: 'short', day: 'numeric', month: 'short' }) +
+    ' · ' + d.toLocaleTimeString(i18n.locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 function csvField(val: string | null | undefined): string {
@@ -91,8 +95,8 @@ function buildCSV(registros: Registro[], checkins: Record<string, Checkin>, C: T
   const header = t('history.csvHeader');
   const rows = registros.map(r => {
     const fecha = new Date(r.fecha).toLocaleString(locale);
-    const clase = getPill(r.sys, r.dia, C).label;
-    const c = checkins[r.fecha.slice(0, 10)];
+    const clase = tBp(getPill(r.sys, r.dia, C).label);
+    const c = checkins[localDateStr(r.fecha)];
     return [
       fecha, r.sys, r.dia, r.pul ?? '', clase, csvField(r.nota),
       c ? c.sueno : '', c ? c.estres : '', c ? c.actividad : '', c ? (c.med ? t('history.csvYes') : t('history.csvNo')) : '',
@@ -132,12 +136,12 @@ async function buildPDF(registros: Registro[], checkins: Record<string, Checkin>
 
   const filas = registros.map(r => {
     const p = getPill(r.sys, r.dia, C);
-    const c = checkins[r.fecha.slice(0, 10)];
+    const c = checkins[localDateStr(r.fecha)];
     const f = new Date(r.fecha).toLocaleString(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     return `<tr>
       <td>${f}</td>
       <td><strong>${r.sys}/${r.dia}</strong></td>
-      <td><span class="pill ${pillClass(p.label)}">${p.label}</span></td>
+      <td><span class="pill ${pillClass(p.label)}">${tBp(p.label)}</span></td>
       <td>${r.pul ? r.pul + ' bpm' : '—'}</td>
       <td>${c ? c.sueno + 'h' : '—'}</td>
       <td>${c ? c.estres + '/5' : '—'}</td>
@@ -223,7 +227,7 @@ function buildShareText(registros: Registro[], C: ThemeColors) {
   const lineas = registros.map(r => {
     const p = getPill(r.sys, r.dia, C);
     const nota = r.nota ? `\n   "${r.nota}"` : '';
-    return `${formatFechaCorta(r.fecha)}  ${r.sys}/${r.dia} mmHg  ${p.label}${nota}`;
+    return `${formatFechaCorta(r.fecha)}  ${r.sys}/${r.dia} mmHg  ${tBp(p.label)}${nota}`;
   }).join('\n');
   return [
     t('history.shareTextHeader'),
@@ -300,7 +304,7 @@ export default function HistorialScreen() {
   const swipeRefs = useRef<Record<string, Swipeable | null>>({});
 
   const handleVerDetalle = async (r: Registro) => {
-    const raw = await AsyncStorage.getItem('checkin_' + r.fecha.slice(0, 10));
+    const raw = await AsyncStorage.getItem('checkin_' + localDateStr(r.fecha));
     setDetalle({ registro: r, checkin: raw ? JSON.parse(raw) : null });
   };
 
@@ -321,7 +325,7 @@ export default function HistorialScreen() {
     setExportando(true);
     try {
       const src = filtroActivo ? registrosFiltrados : registros;
-      const fechas = [...new Set(src.map(r => r.fecha.slice(0, 10)))];
+      const fechas = [...new Set(src.map(r => localDateStr(r.fecha)))];
       const pairs = await AsyncStorage.multiGet(fechas.map(f => `checkin_${f}`));
       const checkins: Record<string, Checkin> = {};
       for (const [key, val] of pairs) {
@@ -342,7 +346,7 @@ export default function HistorialScreen() {
     setExportando(true);
     try {
       const src = filtroActivo ? registrosFiltrados : registros;
-      const fechas = [...new Set(src.map(r => r.fecha.slice(0, 10)))];
+      const fechas = [...new Set(src.map(r => localDateStr(r.fecha)))];
       const pairs = await AsyncStorage.multiGet(fechas.map(f => `checkin_${f}`));
       const checkins: Record<string, Checkin> = {};
       for (const [key, val] of pairs) {
@@ -377,13 +381,13 @@ export default function HistorialScreen() {
   const agrupado = useMemo(() => {
     const groups: { fecha: string; label: string; items: Registro[] }[] = [];
     for (const r of registrosFiltrados) {
-      const dia = r.fecha.slice(0, 10);
+      const dia = localDateStr(r.fecha);
       const last = groups[groups.length - 1];
       if (last && last.fecha === dia) {
         last.items.push(r);
       } else {
         const d = new Date(r.fecha);
-        const raw = d.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
+        const raw = d.toLocaleDateString(i18n.locale, { weekday: 'long', day: 'numeric', month: 'long' });
         groups.push({ fecha: dia, label: raw.charAt(0).toUpperCase() + raw.slice(1), items: [r] });
       }
     }
@@ -458,7 +462,7 @@ export default function HistorialScreen() {
                     onPress={() => setFiltroClase(filtroClase === c ? null : c)}
                     style={[styles.chip, filtroClase === c && styles.chipActive]}
                   >
-                    <Text style={[styles.chipText, filtroClase === c && styles.chipTextActive]}>{c}</Text>
+                    <Text style={[styles.chipText, filtroClase === c && styles.chipTextActive]}>{tBp(c)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -532,7 +536,7 @@ export default function HistorialScreen() {
                 );
                 return (
                   <View key={clase} style={styles.distRow}>
-                    <Text style={styles.distLabel}>{clase}</Text>
+                    <Text style={styles.distLabel}>{tBp(clase)}</Text>
                     <View style={styles.distBarBg}>
                       <View style={[styles.distBar, { width: `${pct}%` as any, backgroundColor: pill.bg }]} />
                     </View>
@@ -578,7 +582,7 @@ export default function HistorialScreen() {
                     <View style={styles.row}>
                       <Text style={styles.val}>{r.sys}/{r.dia}</Text>
                       <View style={[styles.pill, { backgroundColor: p.bg }]}>
-                        <Text style={[styles.pillText, { color: p.color }]}>{p.label}</Text>
+                        <Text style={[styles.pillText, { color: p.color }]}>{tBp(p.label)}</Text>
                       </View>
                     </View>
                     <View style={styles.fechaPulRow}>
@@ -646,7 +650,7 @@ export default function HistorialScreen() {
                   <View style={styles.modalHeader}>
                     <Text style={styles.modalVal}>{r.sys}/{r.dia} <Text style={styles.modalUnit}>mmHg</Text></Text>
                     <View style={[styles.pill, { backgroundColor: p.bg }]}>
-                      <Text style={[styles.pillText, { color: p.color }]}>{p.label}</Text>
+                      <Text style={[styles.pillText, { color: p.color }]}>{tBp(p.label)}</Text>
                     </View>
                   </View>
                   <Text style={styles.modalFecha}>{formatFecha(r.fecha)}</Text>

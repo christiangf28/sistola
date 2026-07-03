@@ -15,8 +15,8 @@ function getAnalysis(sys: number, dia: number, pul: number | null, nota: string,
   else if (sys >= 160 || dia >= 100) { msg = t('register.analysis.high'); color = C.bp.alta.bg; }
   else if (sys >= 140 || dia >= 90)  { msg = t('register.analysis.elevated'); color = C.bp.elevada.bg; }
   else if (sys >= 130 || dia >= 85)  { msg = t('register.analysis.highNormal'); color = C.bp.normalAlta.bg; }
-  else if (sys < 90 || dia < 60)    { msg = t('register.analysis.low'); color = C.bp.baja.bg; }
-  else                               { msg = t('register.analysis.normal'); color = C.bp.normal.bg; }
+  else if (sys < 90   || dia < 60)  { msg = t('register.analysis.low');       color = C.bp.baja.bg; }
+  else                               { msg = t('register.analysis.normal');    color = C.bp.normal.bg; }
 
   if (pul !== null) {
     const esEjercicio = nota.toLowerCase().includes('ejercicio') || nota.toLowerCase().includes('exercise');

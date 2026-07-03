@@ -22,7 +22,7 @@ export default function Onboarding() {
     AsyncStorage.getItem('onboarding_done').then(val => {
       if (val === 'true') router.replace('/(tabs)');
     });
-  }, []);
+  }, [router]);
 
   const t = i18n.t.bind(i18n);
   const steps = [

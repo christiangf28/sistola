@@ -35,6 +35,7 @@ export function MedicamentoPicker({ visible, initialSelection, onSelect, onClose
       setManualNombre('');
       setManualDosis('');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo resetear al abrir el modal
   }, [visible]);
 
   const filtered = useMemo(() => {
